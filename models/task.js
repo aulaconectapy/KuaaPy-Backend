@@ -18,11 +18,11 @@ const TaskSchema = new mongoose.Schema({
   },
   assignedStudents: [
     {
-      studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Relación con estudiantes
+      studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' }, // Relación con estudiantes
       status: { type: String, enum: ['Pendiente', 'Entregado'], default: 'Pendiente' },
     },
-  ],
-  teacherId: {
+  ],  
+  creatorId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User', // Relación con el docente que crea la tarea
     required: true,

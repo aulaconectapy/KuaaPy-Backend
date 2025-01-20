@@ -3,6 +3,7 @@ const connectDB = require('./config/db');
 const userRoutes = require('./routes/userRoutes');
 const institutionRoutes = require('./routes/institutionRoutes');
 const apiTask = require('./routes/taskRoutes');
+const studentRoutes = require('./routes/studentRoutes');
 
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -38,6 +39,8 @@ app.use(express.json()); // Para parsear el cuerpo de las solicitudes como JSON
 app.use('/api/auth', userRoutes);
 app.use('/api/institutions', institutionRoutes);  // Usamos las rutas para /institutions
 app.use('/api/tasks', apiTask);  
+app.use('/api/students', studentRoutes);
+
 
 // Iniciar el servidor
 const PORT = process.env.PORT || 5000;
