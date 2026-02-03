@@ -7,7 +7,7 @@ const protect = require('../middlewares/protect'); // Middleware de protección
 router.post('/', protect, institutionController.createInstitution);
 
 // Obtener todas las instituciones
-router.get('/', protect, institutionController.getAllInstitutions);
+router.get('/', institutionController.getAllInstitutions);
 
 // Obtener una institución por ID
 router.get('/:id', protect, institutionController.getInstitutionById);
