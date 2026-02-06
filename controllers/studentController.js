@@ -5,41 +5,62 @@ const jwt = require('jsonwebtoken'); // Para generar el token
 // Crear un nuevo estudiante
 exports.createStudent = async (req, res) => {
   try {
-      const { firstName, lastName, birthDate, institution, grade, guardian, password } = req.body;
+    const {
+      firstName,
+      lastName,
+      cedula,
+      birthDate,
+      institution,
+      grade,
+      guardian,
+      password
+    } = req.body;
 
-      // Imprimir los datos recibidos para depuración
-      console.log('Datos recibidos:', { firstName, lastName, birthDate, institution, grade, guardian, password });
+    console.log('Datos recibidos:', req.body);
 
-      // Verificamos si el estudiante ya está registrado por su cédula o guardian (si eso es lo que se espera)
-      const studentExists = await Student.findOne({ guardian }); // O podrías cambiarlo a un campo como `cedula`
-      if (studentExists) {
-          return res.status(400).json({ message: 'Este estudiante ya está registrado.' });
+    // 🔍 Validar cédula solo si viene
+    if (cedula) {
+      const exists = await Student.findOne({ cedula });
+      if (exists) {
+        return res.status(400).json({
+          message: 'Ya existe un estudiante con esta cédula.',
+        });
       }
+    }
 
-      // Creamos el nuevo estudiante
-      const student = new Student({
-          firstName,
-          lastName,
-          birthDate,
-          institution,
-          grade,
-          guardian,
-          password, // La contraseña será encriptada en el middleware 'pre-save' del modelo
-          createdBy: req.user.userId, // Asumimos que el usuario está autenticado y obtenemos el userId
-      });
+    const student = new Student({
+      firstName,
+      lastName,
+      cedula: cedula || undefined, // 👈 clave
+      birthDate,
+      institution,
+      grade,
+      guardian,
+      password,
+      createdBy: req.user.userId,
+    });
 
-      // Guardamos el estudiante
-      await student.save();
+    await student.save();
 
-      res.status(201).json({
-          message: 'Estudiante creado exitosamente',
-          student: student._id, // Retornamos el ID del estudiante creado
-      });
+    res.status(201).json({
+      message: 'Estudiante creado exitosamente',
+      studentId: student._id,
+    });
   } catch (error) {
-      console.error("Error al crear el estudiante:", error);
-      res.status(500).json({ message: 'Error al crear el estudiante.' });
+    console.error('Error al crear el estudiante:', error);
+
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: 'La cédula ya está registrada.',
+      });
+    }
+
+    res.status(500).json({
+      message: 'Error al crear el estudiante.',
+    });
   }
 };
+
 
   
 

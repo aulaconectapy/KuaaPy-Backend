@@ -1,5 +1,5 @@
 const express = require('express');
-const { createUser, loginUser, getUsers, getUserById, deleteUser } = require('../controllers/userController');
+const { createUser, loginUser, getUsers, getUserById, deleteUser,updateUser } = require('../controllers/userController');
 const protect = require('../middlewares/protect'); // Middleware de protección
 const router = express.Router();
 
@@ -13,5 +13,7 @@ router.post('/login', loginUser);
 router.get('/', protect, getUsers); // Ver todos los usuarios
 router.get('/:userId', protect, getUserById); // Ver un usuario por ID
 router.delete('/:userId', protect, deleteUser); // Eliminar un usuario
+router.put('/:userId', protect, updateUser);
+
 
 module.exports = router;

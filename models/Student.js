@@ -1,36 +1,48 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs'); // Importamos bcryptjs para encriptar la contraseña
+const bcrypt = require('bcryptjs');
 const Schema = mongoose.Schema;
 
 const studentSchema = new Schema({
   firstName: {
     type: String,
     required: true,
+    trim: true,
   },
   lastName: {
     type: String,
     required: true,
+    trim: true,
   },
+
+  // 👉 CÉDULA
+  cedula: {
+    type: String,
+    unique: true,
+    sparse: true, // 👈 CLAVE para permitir múltiples null
+    trim: true,
+  },
+
   birthDate: {
     type: Date,
     required: true,
   },
   institution: {
     type: Schema.Types.ObjectId,
-    ref: 'Institution', // Referencia a la institución
+    ref: 'Institution',
     required: true,
   },
   grade: {
     type: String,
-    required: true, // Se obtendrá desde la API de Institution
+    required: true,
   },
   guardian: {
-    type: String, // Nombre del padre/madre/tutor
-    required: false, // No es obligatorio
+    type: String, // Nombre del tutor
+    required: false,
+    trim: true,
   },
   createdBy: {
     type: Schema.Types.ObjectId,
-    ref: 'User', // ID del usuario que creó el registro
+    ref: 'User',
     required: true,
   },
   createdAt: {
@@ -39,28 +51,27 @@ const studentSchema = new Schema({
   },
   password: {
     type: String,
-    required: true, // El campo password es obligatorio
-    minlength: 6, // Puedes ajustar la longitud mínima si es necesario
+    required: true,
+    minlength: 6,
   },
 });
 
-// Middleware para encriptar la contraseña antes de guardarla
+// 🔐 Encriptar contraseña
 studentSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next(); // Solo encriptar si el campo password ha sido modificado
+  if (!this.isModified('password')) return next();
 
   try {
-    const salt = await bcrypt.genSalt(10); // Generamos un "salt" para la encriptación
-    this.password = await bcrypt.hash(this.password, salt); // Encriptamos la contraseña
-    next(); // Continuamos con el proceso de guardado
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
   } catch (error) {
-    next(error); // Si hay un error en el proceso de encriptación, lo pasamos al siguiente middleware
+    next(error);
   }
 });
 
-// Método para comparar la contraseña proporcionada con la almacenada en la base de datos
+// 🔑 Comparar contraseña
 studentSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password); // Compara las contraseñas
+  return bcrypt.compare(enteredPassword, this.password);
 };
 
-const Student = mongoose.model('Student', studentSchema);
-module.exports = Student;
+module.exports = mongoose.model('Student', studentSchema);

@@ -2,21 +2,32 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 
-// Crear un nuevo usuario y iniciar sesión automáticamente
+// Crear un nuevo usuario y generar token
 const createUser = async (req, res) => {
-  const { firstName, lastName, email, password, idNumber, birthDate, institution, grade, phoneNumber, role, associatedInstitution, associatedChildren } = req.body;
+  const {
+    firstName,
+    lastName,
+    email,
+    password,
+    idNumber,
+    birthDate,
+    institution, // ✅ usamos solo institution
+    grades,
+    phoneNumber,
+    role,
+    associatedChildren
+  } = req.body;
 
-  // Log para ver los datos recibidos en la solicitud
   console.log('Datos recibidos para crear usuario:', req.body);
 
   try {
-    // Verificar si el correo electrónico o el ID ya existen
+    // Verificar duplicados
     const existingUser = await User.findOne({ $or: [{ email }, { idNumber }] });
     if (existingUser) {
-      return res.status(400).json({ message: 'El correo electrónico o el número de identificación ya están registrados' });
+      return res.status(400).json({ message: 'Correo o número de ID ya registrado' });
     }
 
-    // Crear el nuevo usuario
+    // Crear usuario
     const newUser = new User({
       firstName,
       lastName,
@@ -24,40 +35,37 @@ const createUser = async (req, res) => {
       password,
       idNumber,
       birthDate,
-      institution,
-      grade,
+      institution, // ✅ campo correcto
+      grades,
       phoneNumber,
       role,
-      associatedInstitution,
       associatedChildren,
+      isActive: false
     });
 
     await newUser.save();
 
-    // Iniciar sesión automáticamente: crear un token
+    // Crear token
     const token = jwt.sign(
       { userId: newUser._id, role: newUser.role },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' } // Expiración de 1 hora
+      { expiresIn: '1h' }
     );
 
-    // Log para verificar que el usuario fue creado correctamente
     console.log('Usuario creado exitosamente:', newUser);
 
     res.status(201).json({ message: 'Usuario creado y sesión iniciada', token });
-  } catch (error) {
-    // Log para ver el error en caso de fallo
-    console.error('Error al crear el usuario:', error);
 
+  } catch (error) {
+    console.error('Error al crear el usuario:', error);
     res.status(500).json({ message: 'Error al crear el usuario', error: error.message });
   }
 };
 
-// Iniciar sesión con correo y contraseña
+// Iniciar sesión
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
-  // Log para ver los datos recibidos en la solicitud de login
   console.log('Datos recibidos para iniciar sesión:', req.body);
 
   try {
@@ -67,27 +75,23 @@ const loginUser = async (req, res) => {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    // Verificar la contraseña
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Contraseña incorrecta' });
     }
 
-    // Crear el token
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '30m' }
     );
 
-    // Log para verificar el éxito del login
     console.log('Login exitoso para el usuario:', user);
 
     res.status(200).json({ message: 'Login exitoso', token });
-  } catch (error) {
-    // Log para ver el error en caso de fallo
-    console.error('Error al iniciar sesión:', error);
 
+  } catch (error) {
+    console.error('Error al iniciar sesión:', error);
     res.status(500).json({ message: 'Error al iniciar sesión', error: error.message });
   }
 };
@@ -95,42 +99,44 @@ const loginUser = async (req, res) => {
 // Obtener todos los usuarios
 const getUsers = async (req, res) => {
   try {
-    const users = await User.find();
+    const users = await User.find()
+      .populate('institution', 'name grades'); // ✅ populate correcto
     res.status(200).json(users);
   } catch (error) {
-    // Log para ver el error al obtener los usuarios
-    console.error('Error al obtener los usuarios:', error);
-
-    res.status(500).json({ message: 'Error al obtener los usuarios', error: error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Error al obtener los usuarios' });
   }
 };
 
-// Obtener un usuario por su ID
+// Obtener usuario por ID
 const getUserById = async (req, res) => {
   const { userId } = req.params;
 
-  // Log para ver el ID recibido
   console.log('ID de usuario recibido:', userId);
 
   try {
-    const user = await User.findById(userId);
+    const user = await User.findById(userId)
+      .populate('institution'); // ✅ populate correcto
+
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
-    res.status(200).json(user);
-  } catch (error) {
-    // Log para ver el error en caso de fallo
-    console.error('Error al obtener el usuario:', error);
 
+    // No enviar password al frontend
+    const userObject = user.toObject();
+    delete userObject.password;
+
+    res.status(200).json(userObject);
+  } catch (error) {
+    console.error('Error al obtener el usuario:', error);
     res.status(500).json({ message: 'Error al obtener el usuario', error: error.message });
   }
 };
 
-// Eliminar un usuario
+// Eliminar usuario
 const deleteUser = async (req, res) => {
   const { userId } = req.params;
 
-  // Log para ver el ID recibido para eliminar
   console.log('ID de usuario para eliminar:', userId);
 
   try {
@@ -140,10 +146,35 @@ const deleteUser = async (req, res) => {
     }
     res.status(200).json({ message: 'Usuario eliminado correctamente' });
   } catch (error) {
-    // Log para ver el error en caso de fallo
     console.error('Error al eliminar el usuario:', error);
-
     res.status(500).json({ message: 'Error al eliminar el usuario', error: error.message });
+  }
+};
+
+// Actualizar usuario
+const updateUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Evitar cambiar password acá (opcional)
+    if (req.body.password) {
+      delete req.body.password;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      req.body,
+      { new: true }
+    ).populate('institution'); // ✅ populate correcto
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al actualizar usuario' });
   }
 };
 
@@ -153,4 +184,5 @@ module.exports = {
   getUsers,
   getUserById,
   deleteUser,
+  updateUser,
 };

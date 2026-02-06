@@ -1,21 +1,32 @@
 const express = require('express');
-const { createTask, getTasksByGrade, updateTaskStatus, getStudentProgress, associateParent } = require('../controllers/taskController');
-const protect = require('../middlewares/protect'); // Middleware de protección
 const router = express.Router();
+const protect = require('../middlewares/protect');
 
-// Ruta para que los docentes creen una tarea
-router.post('/create', protect, createTask);
+const {
+  createTask,
+  getTasks,
+  getTasksByGrade,
+  getTaskById,
+  updateTask,
+  deleteTask,
+} = require('../controllers/taskController');
 
-// Obtener tareas por grado (estudiantes y docentes)
+// Crear tarea (docente)
+router.post('/', protect, createTask);
+
+// Obtener todas las tareas (según rol)
+router.get('/', protect, getTasks);
+
+// Obtener tareas por grado (estudiantes)
 router.get('/grade/:grade', protect, getTasksByGrade);
 
-// Actualizar el estado de una tarea (docentes)
-router.put('/status/:taskId', protect, updateTaskStatus);
+// Obtener tarea por ID
+router.get('/:id', protect, getTaskById);
 
-// Ver el progreso del estudiante (padres y estudiantes)
-router.get('/progress/:studentId', protect, getStudentProgress);
+// Actualizar tarea
+router.put('/:id', protect, updateTask);
 
-// Asociar a un padre/madre con un hijo
-router.post('/associate', protect, associateParent);
+// Eliminar tarea
+router.delete('/:id', protect, deleteTask);
 
 module.exports = router;

@@ -1,32 +1,72 @@
 const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
-const TaskSchema = new mongoose.Schema({
+const taskSchema = new Schema({
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+
   subject: {
-    type: String, // Nombre de la asignatura
+    type: String,
     required: true,
   },
-  description: {
-    type: String, // Descripción de la tarea
-    required: true,
-  },
-  dueDate: {
-    type: Date, // Fecha límite de entrega
-  },
-  grade: {
-    type: String, // Grado al que se asigna la tarea
-    required: true,
-  },
-  assignedStudents: [
-    {
-      studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' }, // Relación con estudiantes
-      status: { type: String, enum: ['Pendiente', 'Entregado'], default: 'Pendiente' },
-    },
-  ],  
-  creatorId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Relación con el docente que crea la tarea
-    required: true,
-  },
-}, { timestamps: true });
 
-module.exports = mongoose.model('Task', TaskSchema);
+  capacities: [{
+    type: String,
+    required: true,
+  }],
+
+  topic: {
+    type: String,
+    required: true,
+  },
+
+  indicators: [{
+    description: {
+      type: String,
+      required: true,
+    },
+    points: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+  }],
+
+  dueDate: {
+    type: Date,
+    required: true,
+  },
+
+  status: {
+    type: String,
+    enum: ['pendiente', 'publicada', 'cerrada'],
+    default: 'pendiente',
+  },
+
+  institution: {
+    type: Schema.Types.ObjectId,
+    ref: 'Institution',
+    required: true,
+  },
+
+  grade: {
+    type: String,
+    required: true,
+  },
+
+  teacher: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+module.exports = mongoose.model('Task', taskSchema);

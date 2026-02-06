@@ -1,125 +1,172 @@
-const Task = require('../models/task');
+const Task = require('../models/Task');
 const User = require('../models/User');
 
-// Crear una nueva tarea (solo docentes)
-const createTask = async (req, res) => {
-  const { subject, description, dueDate, grade, assignedStudents } = req.body;
-
-  if (req.user.role !== 'docente') {
-    return res.status(403).json({ message: 'Acceso denegado' });
-  }
-
+// Crear una tarea (solo docentes)
+exports.createTask = async (req, res) => {
   try {
-    const newTask = new Task({
+    const {
+      title,
       subject,
-      description,
+      capacities,
+      topic,
+      indicators,
       dueDate,
       grade,
-      assignedStudents,
-      teacherId: req.user.userId,
+      status,
+    } = req.body;
+
+    // 1️⃣ Verificar rol
+    if (req.user.role !== 'docente') {
+      return res.status(403).json({ message: 'Solo los docentes pueden crear tareas.' });
+    }
+
+    // 2️⃣ Obtener docente completo
+    const teacher = await User.findById(req.user.userId);
+    if (!teacher) {
+      return res.status(404).json({ message: 'Docente no encontrado.' });
+    }
+
+    // 3️⃣ Validar grado asignado al docente
+    const teacherGrades = teacher.grades || [teacher.grade];
+    if (!teacherGrades.includes(grade)) {
+      return res.status(403).json({
+        message: 'El grado no está asignado a este docente.',
+      });
+    }
+
+    // 4️⃣ Crear tarea
+    const task = new Task({
+      title,
+      subject,
+      capacities,
+      topic,
+      indicators,
+      dueDate,
+      status,
+      grade,
+      institution: teacher.institution,
+      teacher: teacher._id,
     });
 
-    await newTask.save();
-    res.status(201).json({ message: 'Tarea creada exitosamente', task: newTask });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error al crear la tarea', error: error.message });
-  }
-};
-
-// Obtener tareas por grado
-const getTasksByGrade = async (req, res) => {
-  const { grade } = req.params;
-
-  try {
-    const tasks = await Task.find({ grade });
-    res.status(200).json(tasks);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error al obtener tareas', error: error.message });
-  }
-};
-
-// Actualizar el estado de una tarea para un estudiante
-const updateTaskStatus = async (req, res) => {
-  const { taskId } = req.params;
-  const { studentId, status } = req.body;
-
-  if (req.user.role !== 'docente') {
-    return res.status(403).json({ message: 'Acceso denegado' });
-  }
-
-  try {
-    const task = await Task.findById(taskId);
-    if (!task) {
-      return res.status(404).json({ message: 'Tarea no encontrada' });
-    }
-
-    const studentTask = task.assignedStudents.find(s => s.studentId.toString() === studentId);
-    if (!studentTask) {
-      return res.status(404).json({ message: 'Estudiante no asignado a esta tarea' });
-    }
-
-    studentTask.status = status;
     await task.save();
 
-    res.status(200).json({ message: 'Estado actualizado exitosamente', task });
+    res.status(201).json({
+      message: 'Tarea creada exitosamente.',
+      task,
+    });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error al actualizar estado', error: error.message });
+    console.error('Error al crear la tarea:', error);
+    res.status(500).json({ message: 'Error al crear la tarea.' });
   }
 };
 
-// Ver el progreso del estudiante
-const getStudentProgress = async (req, res) => {
-  const { studentId } = req.params;
-
+// Obtener todas las tareas (según rol)
+exports.getTasks = async (req, res) => {
   try {
-    const tasks = await Task.find({ 'assignedStudents.studentId': studentId });
-    const progress = tasks.map(task => ({
-      subject: task.subject,
-      description: task.description,
-      dueDate: task.dueDate,
-      status: task.assignedStudents.find(s => s.studentId.toString() === studentId).status,
-    }));
+    let filter = {};
 
-    res.status(200).json(progress);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error al obtener el progreso', error: error.message });
-  }
-};
-
-// Asociar a un padre/madre con un hijo
-const associateParent = async (req, res) => {
-  const { childId } = req.body;
-
-  if (req.user.role !== 'padre/madre/tutor') {
-    return res.status(403).json({ message: 'Acceso denegado' });
-  }
-
-  try {
-    const parent = await User.findById(req.user.userId);
-    const child = await User.findById(childId);
-
-    if (!parent || !child) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
+    // Docente: solo sus tareas
+    if (req.user.role === 'docente') {
+      filter.teacher = req.user.userId;
     }
 
-    parent.associatedChildren.push(childId);
-    await parent.save();
+    const tasks = await Task.find(filter)
+      .populate('institution', 'name')
+      .populate('teacher', 'firstName lastName');
 
-    res.status(200).json({ message: 'Asociación exitosa' });
+    res.status(200).json(tasks);
+
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Error al asociar', error: error.message });
+    res.status(500).json({ message: 'Error al obtener las tareas.' });
   }
 };
 
-module.exports = {
-  createTask,
-  getTasksByGrade,
-  updateTaskStatus,
-  getStudentProgress,
-  associateParent,
+// Obtener tareas por grado (para estudiantes)
+exports.getTasksByGrade = async (req, res) => {
+  try {
+    const { grade } = req.params;
+
+    const tasks = await Task.find({
+      grade,
+      institution: req.user.institution,
+      status: 'publicada',
+    });
+
+    res.status(200).json(tasks);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al obtener tareas por grado.' });
+  }
+};
+
+// Obtener una tarea por ID
+exports.getTaskById = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id)
+      .populate('teacher', 'firstName lastName');
+
+    if (!task) {
+      return res.status(404).json({ message: 'Tarea no encontrada.' });
+    }
+
+    res.status(200).json(task);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al obtener la tarea.' });
+  }
+};
+
+// Actualizar tarea
+exports.updateTask = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ message: 'Tarea no encontrada.' });
+    }
+
+    // Solo el docente creador
+    if (task.teacher.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'No autorizado.' });
+    }
+
+    Object.assign(task, req.body);
+    await task.save();
+
+    res.status(200).json({
+      message: 'Tarea actualizada exitosamente.',
+      task,
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al actualizar la tarea.' });
+  }
+};
+
+// Eliminar tarea
+exports.deleteTask = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ message: 'Tarea no encontrada.' });
+    }
+
+    if (task.teacher.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'No autorizado.' });
+    }
+
+    await task.deleteOne();
+
+    res.status(200).json({ message: 'Tarea eliminada correctamente.' });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al eliminar la tarea.' });
+  }
 };
