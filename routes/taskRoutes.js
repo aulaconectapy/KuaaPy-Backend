@@ -9,24 +9,18 @@ const {
   getTaskById,
   updateTask,
   deleteTask,
+  updateStudentTask,
+  getStudentTasksByGrade
 } = require('../controllers/taskController');
 
-// Crear tarea (docente)
+// RUTAS TAREA
 router.post('/', protect, createTask);
-
-// Obtener todas las tareas (según rol)
 router.get('/', protect, getTasks);
-
-// Obtener tareas por grado (estudiantes)
-router.get('/grade/:grade', protect, getTasksByGrade);
-
-// Obtener tarea por ID
+router.get('/grade/:grade', protect, getTasksByGrade); // Para alumnos
+router.get('/student-tasks/grade/:grade', protect, getStudentTasksByGrade); // Para docentes
 router.get('/:id', protect, getTaskById);
-
-// Actualizar tarea
 router.put('/:id', protect, updateTask);
-
-// Eliminar tarea
+router.put('/student-task/:studentTaskId', protect, updateStudentTask); // Cambiar estado por alumno
 router.delete('/:id', protect, deleteTask);
 
 module.exports = router;
