@@ -1,26 +1,33 @@
 const jwt = require('jsonwebtoken');
 
-// Middleware para verificar el token y decodificarlo
 const protect = (req, res, next) => {
   let token;
 
-  // Verificar si hay un token en la cabecera Authorization
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
-    token = req.headers.authorization.split(' ')[1]; // Extraer el token
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer ')
+  ) {
+    token = req.headers.authorization.split(' ')[1];
 
     try {
-      // Verificar el token y decodificarlo
-      const decoded = jwt.verify(token, process.env.JWT_SECRET); // El token se verifica y decodifica
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Adjuntar la información del usuario (userId) al objeto req
-      req.user = { userId: decoded.userId }; // Aquí es donde agregamos el userId del token decodificado
+      // ✅ PASAR TODO LO NECESARIO
+      req.user = {
+        userId: decoded.userId,
+        role: decoded.role, // 👈🔥 ESTA ERA LA CLAVE
+      };
 
-      next(); // Continuar con la ejecución de la siguiente función o ruta
+      next();
     } catch (error) {
-      res.status(401).json({ message: 'Token no válido o expirado' }); // Si el token no es válido
+      return res
+        .status(401)
+        .json({ message: 'Token no válido o expirado' });
     }
   } else {
-    res.status(401).json({ message: 'No autorizado, token no proporcionado' }); // Si no se proporciona el token
+    return res
+      .status(401)
+      .json({ message: 'No autorizado, token no proporcionado' });
   }
 };
 

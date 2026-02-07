@@ -1,63 +1,63 @@
-const Task = require('../models/Task');
-const User = require('../models/User');
+const Task = require("../models/Task");
+const User = require("../models/User");
 
-// Crear una tarea (solo docentes)
+// Crear tarea (solo docentes)
 exports.createTask = async (req, res) => {
   try {
-    const {
-      title,
-      subject,
-      capacities,
-      topic,
-      indicators,
-      dueDate,
-      grade,
-      status,
-    } = req.body;
+    const { subject, topic, grade, dueDate, indicators, status } = req.body;
 
-    // 1️⃣ Verificar rol
-    if (req.user.role !== 'docente') {
-      return res.status(403).json({ message: 'Solo los docentes pueden crear tareas.' });
+    // 1️⃣ Verificar rol desde token
+    if (req.user.role !== "docente") {
+      return res.status(403).json({ message: "Solo los docentes pueden crear tareas." });
     }
 
     // 2️⃣ Obtener docente completo
     const teacher = await User.findById(req.user.userId);
-    if (!teacher) {
-      return res.status(404).json({ message: 'Docente no encontrado.' });
-    }
+    if (!teacher) return res.status(404).json({ message: "Docente no encontrado." });
 
     // 3️⃣ Validar grado asignado al docente
     const teacherGrades = teacher.grades || [teacher.grade];
+
+    // 👇👇👇 AQUÍ VAN LOS LOGS 👇👇👇
+    console.log("Grados del docente:", teacherGrades);
+    console.log("Grado recibido:", grade);
+    // 👆👆👆 JUSTO AQUÍ 👆👆👆
+
     if (!teacherGrades.includes(grade)) {
       return res.status(403).json({
-        message: 'El grado no está asignado a este docente.',
+        message: "El grado no está asignado a este docente."
       });
     }
 
-    // 4️⃣ Crear tarea
+    // 4️⃣ Validar indicadores
+    if (!Array.isArray(indicators) || indicators.length === 0) {
+      return res.status(400).json({ message: "Debe enviar al menos un indicador." });
+    }
+
+    for (const ind of indicators) {
+      if (!ind.description || typeof ind.points !== "number") {
+        return res.status(400).json({ message: "Indicadores inválidos." });
+      }
+    }
+
+    // 5️⃣ Crear tarea
     const task = new Task({
-      title,
       subject,
-      capacities,
       topic,
-      indicators,
-      dueDate,
-      status,
       grade,
+      dueDate,
+      status: status || "pendiente",
       institution: teacher.institution,
       teacher: teacher._id,
+      indicators,
     });
 
     await task.save();
-
-    res.status(201).json({
-      message: 'Tarea creada exitosamente.',
-      task,
-    });
+    res.status(201).json({ message: "Tarea creada exitosamente", task });
 
   } catch (error) {
-    console.error('Error al crear la tarea:', error);
-    res.status(500).json({ message: 'Error al crear la tarea.' });
+    console.error("Error al crear la tarea:", error);
+    res.status(500).json({ message: "Error al crear la tarea" });
   }
 };
 
