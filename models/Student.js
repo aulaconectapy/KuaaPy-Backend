@@ -1,77 +1,63 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 const Schema = mongoose.Schema;
 
 const studentSchema = new Schema({
   firstName: {
     type: String,
-    required: true,
-    trim: true,
-  },
-  lastName: {
-    type: String,
-    required: true,
+    required: [true, 'El nombre es obligatorio'],
     trim: true,
   },
 
-  // 👉 CÉDULA
+  lastName: {
+    type: String,
+    required: [true, 'El apellido es obligatorio'],
+    trim: true,
+  },
+
   cedula: {
     type: String,
     unique: true,
-    sparse: true, // 👈 CLAVE para permitir múltiples null
+    sparse: true,
     trim: true,
   },
 
   birthDate: {
     type: Date,
-    required: true,
+    required: [true, 'La fecha de nacimiento es obligatoria'],
   },
+
   institution: {
     type: Schema.Types.ObjectId,
     ref: 'Institution',
-    required: true,
+    required: [true, 'La institución es obligatoria'],
   },
+
   grade: {
     type: String,
-    required: true,
+    required: [true, 'El grado es obligatorio'],
   },
+
   guardian: {
-    type: String, // Nombre del tutor
-    required: false,
+    type: String,
     trim: true,
   },
-  createdBy: {
+
+  user: {
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true,
   },
+
+  createdBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: [true, 'El usuario creador es obligatorio'],
+  },
+
   createdAt: {
     type: Date,
     default: Date.now,
   },
-  password: {
-    type: String,
-    required: true,
-    minlength: 6,
-  },
 });
-
-// 🔐 Encriptar contraseña
-studentSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
-
-// 🔑 Comparar contraseña
-studentSchema.methods.matchPassword = async function (enteredPassword) {
-  return bcrypt.compare(enteredPassword, this.password);
-};
 
 module.exports = mongoose.model('Student', studentSchema);

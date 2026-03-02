@@ -15,8 +15,9 @@ const userSchema = new Schema({
 
   email: {
     type: String,
-    required: true,
+    required: false,
     unique: true,
+    sparse: true,
     match: [/\S+@\S+\.\S+/, 'Correo electrónico inválido'],
   },
 
@@ -42,7 +43,6 @@ const userSchema = new Schema({
     required: true,
   },
 
-  // ✅ AHORA ES ARRAY
   grades: [{
     type: String,
     enum: [
@@ -59,11 +59,9 @@ const userSchema = new Schema({
 
   role: {
     type: String,
-    enum: ['padre/madre/tutor', 'docente', 'director/a', 'administrador', 'estudiante'],
+    enum: ['padre/madre/tutor', 'docente', 'director/a', 'administrador', 'estudiante', 'secretario/a'],
     required: true,
   },
-
-
 
   associatedChildren: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -75,7 +73,7 @@ const userSchema = new Schema({
 
   isActive: {
     type: Boolean,
-    default: false,
+    default: false, // ⚡ Usuarios inactivos por defecto
   },
 
   createdAt: {

@@ -1,8 +1,8 @@
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 
-// Crear un nuevo usuario y generar token
+// ================================
+// Crear un nuevo usuario
 const createUser = async (req, res) => {
   const {
     firstName,
@@ -18,16 +18,14 @@ const createUser = async (req, res) => {
     associatedChildren
   } = req.body;
 
-  console.log('Datos recibidos para crear usuario:', req.body);
-
   try {
     // Verificar duplicados
     const existingUser = await User.findOne({ $or: [{ email }, { idNumber }] });
     if (existingUser) {
-      return res.status(400).json({ message: 'Correo o número de ID ya registrado' });
+      return res.status(400).json({ message: 'Correo o número de cédula ya registrado' });
     }
 
-    // Crear usuario
+    // Crear usuario inactivo por defecto
     const newUser = new User({
       firstName,
       lastName,
@@ -35,26 +33,17 @@ const createUser = async (req, res) => {
       password,
       idNumber,
       birthDate,
-      institution, // ✅ campo correcto
+      institution,
       grades,
       phoneNumber,
       role,
       associatedChildren,
-      isActive: false
+      isActive: false, // ⚡ Inactivo hasta activación por admin/director
     });
 
     await newUser.save();
 
-    // Crear token
-    const token = jwt.sign(
-      { userId: newUser._id, role: newUser.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
-    console.log('Usuario creado exitosamente:', newUser);
-
-    res.status(201).json({ message: 'Usuario creado y sesión iniciada', token });
+    res.status(201).json({ message: 'Usuario creado correctamente. Pendiente de activación' });
 
   } catch (error) {
     console.error('Error al crear el usuario:', error);
@@ -62,17 +51,20 @@ const createUser = async (req, res) => {
   }
 };
 
-// Iniciar sesión
+// ================================
+// Login con CÉDULA (idNumber)
 const loginUser = async (req, res) => {
-  const { email, password } = req.body;
-
-  console.log('Datos recibidos para iniciar sesión:', req.body);
+  const { idNumber, password } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ idNumber });
 
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ message: 'Usuario inactivo. Contacta al administrador.' });
     }
 
     const isMatch = await user.matchPassword(password);
@@ -86,9 +78,7 @@ const loginUser = async (req, res) => {
       { expiresIn: '30m' }
     );
 
-    console.log('Login exitoso para el usuario:', user);
-
-    res.status(200).json({ message: 'Login exitoso', token });
+    res.status(200).json({ message: 'Login exitoso', token, role: user.role });
 
   } catch (error) {
     console.error('Error al iniciar sesión:', error);
@@ -96,11 +86,11 @@ const loginUser = async (req, res) => {
   }
 };
 
+// ================================
 // Obtener todos los usuarios
 const getUsers = async (req, res) => {
   try {
-    const users = await User.find()
-      .populate('institution', 'name grades'); // ✅ populate correcto
+    const users = await User.find().populate('institution', 'name grades');
     res.status(200).json(users);
   } catch (error) {
     console.error(error);
@@ -108,73 +98,85 @@ const getUsers = async (req, res) => {
   }
 };
 
+// ================================
 // Obtener usuario por ID
 const getUserById = async (req, res) => {
   const { userId } = req.params;
 
-  console.log('ID de usuario recibido:', userId);
-
   try {
-    const user = await User.findById(userId)
-      .populate('institution'); // ✅ populate correcto
+    const user = await User.findById(userId).populate('institution');
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
-    if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
-    }
-
-    // No enviar password al frontend
     const userObject = user.toObject();
     delete userObject.password;
 
     res.status(200).json(userObject);
   } catch (error) {
-    console.error('Error al obtener el usuario:', error);
+    console.error(error);
     res.status(500).json({ message: 'Error al obtener el usuario', error: error.message });
   }
 };
 
+// ================================
 // Eliminar usuario
 const deleteUser = async (req, res) => {
   const { userId } = req.params;
 
-  console.log('ID de usuario para eliminar:', userId);
-
   try {
     const user = await User.findByIdAndDelete(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
-    }
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
     res.status(200).json({ message: 'Usuario eliminado correctamente' });
   } catch (error) {
-    console.error('Error al eliminar el usuario:', error);
+    console.error(error);
     res.status(500).json({ message: 'Error al eliminar el usuario', error: error.message });
   }
 };
 
+// ================================
+// Actualizar usuario
 // Actualizar usuario
 const updateUser = async (req, res) => {
   try {
     const { userId } = req.params;
+    const { isActive, password, ...otherFields } = req.body; // Separar isActive y password
 
     // Evitar cambiar password acá (opcional)
-    if (req.body.password) {
+    if (password) {
       delete req.body.password;
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      req.body,
-      { new: true }
-    ).populate('institution'); // ✅ populate correcto
-
-    if (!updatedUser) {
+    const user = await User.findById(userId);
+    if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    res.json(updatedUser);
+    // Actualizar campos generales
+    Object.keys(otherFields).forEach(field => {
+      user[field] = otherFields[field] ?? user[field];
+    });
+
+    // 🔒 Solo admin/director pueden cambiar isActive
+    if (typeof isActive !== 'undefined') {
+      if (req.user.role === 'administrador' || req.user.role === 'director/a') {
+        user.isActive = isActive;
+      } else {
+        return res.status(403).json({ message: 'No tienes permisos para cambiar el estado del usuario' });
+      }
+    }
+
+    await user.save();
+
+    const userObject = user.toObject();
+    delete userObject.password; // No enviar password al frontend
+
+    res.json({
+      message: 'Usuario actualizado correctamente',
+      user: userObject,
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Error al actualizar usuario' });
+    res.status(500).json({ message: 'Error al actualizar usuario', error: error.message });
   }
 };
 

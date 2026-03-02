@@ -1,31 +1,41 @@
 const express = require('express');
 const router = express.Router();
+
 const protect = require('../middlewares/protect');
+
 const {
   createStudent,
   getAllStudents,
   getStudentById,
   updateStudent,
   deleteStudent,
-  loginStudent, // Importamos la función de login
+  getMyTasks
 } = require('../controllers/studentController');
 
-// Ruta para crear un estudiante
+// ================================
+// CRUD ADMINISTRADOR / DOCENTE
+// ================================
+
+// Crear estudiante
 router.post('/', protect, createStudent);
 
-// Ruta para obtener todos los estudiantes
+// Obtener todos
 router.get('/', protect, getAllStudents);
 
-// Ruta para obtener un estudiante por su ID
+// Obtener por ID
 router.get('/:id', protect, getStudentById);
 
-// Ruta para actualizar un estudiante por su ID
+// Actualizar
 router.put('/:id', protect, updateStudent);
 
-// Ruta para eliminar un estudiante por su ID
+// Eliminar
 router.delete('/:id', protect, deleteStudent);
 
-// Ruta para iniciar sesión con cédula y contraseña
-router.post('/login', loginStudent); // Ruta para login
+// ================================
+// ESTUDIANTE LOGUEADO
+// ================================
+
+// Obtener MIS tareas
+router.get('/my-tasks', protect, getMyTasks);
 
 module.exports = router;
