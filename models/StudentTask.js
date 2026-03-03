@@ -4,7 +4,7 @@ const Schema = mongoose.Schema;
 const studentTaskSchema = new Schema({
   task: { type: Schema.Types.ObjectId, ref: 'Task', required: true },
   student: { type: Schema.Types.ObjectId, ref: 'Student', required: true },
-  status: { type: String, enum: ['pendiente', 'entregada', 'revisada'], default: 'pendiente' },
+  status: { type: String, enum: ['pendiente', 'entregada', 'corregido'], default: 'pendiente' },
 
   // Nuevo campo: puntajes por indicador
   indicatorScores: [{

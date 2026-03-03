@@ -287,3 +287,26 @@ exports.getStudentsSummaryByGrade = async (req, res) => {
     res.status(500).json({ message: "Error al obtener resumen", error: error.message });
   }
 };
+// ===============================
+// OBTENER UN StudentTask POR ID
+// ===============================
+exports.getStudentTaskById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const studentTask = await StudentTask.findById(id)
+      .populate("student", "firstName lastName")
+      .populate({
+        path: "task",
+        select: "subject topic indicators grade",
+      });
+
+    if (!studentTask)
+      return res.status(404).json({ message: "Entrega no encontrada" });
+
+    res.status(200).json(studentTask);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error al obtener entrega", error: error.message });
+  }
+};

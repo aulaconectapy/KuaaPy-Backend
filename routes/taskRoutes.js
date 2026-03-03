@@ -11,7 +11,8 @@ const {
   deleteTask,
   updateStudentTask,
   getStudentTasksByGrade,
-  getStudentsSummaryByGrade
+  getStudentsSummaryByGrade,
+  getStudentTaskById
 } = require('../controllers/taskController');
 
 // RUTAS TAREA
@@ -24,5 +25,7 @@ router.put('/:id', protect, updateTask);
 router.put('/student-task/:studentTaskId', protect, updateStudentTask); // Cambiar estado por alumno
 router.delete('/:id', protect, deleteTask);
 router.get('/students-summary/:grade', protect, getStudentsSummaryByGrade);
+router.get('/student-task/:id', protect, getStudentTaskById);
+
 
 module.exports = router;
