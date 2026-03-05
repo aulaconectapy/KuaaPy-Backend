@@ -179,7 +179,84 @@ const updateUser = async (req, res) => {
     res.status(500).json({ message: 'Error al actualizar usuario', error: error.message });
   }
 };
+// ================================
+// Crear docente (SOLO ADMIN / DIRECTOR / SECRETARIO)
+// ================================
+const createDocente = async (req, res) => {
+  try {
+    // 🔐 Validar permisos
+    if (
+      req.user.role !== 'administrador' &&
+      req.user.role !== 'director/a' &&
+      req.user.role !== 'secretario/a'
+    ) {
+      return res.status(403).json({
+        message: 'No tienes permisos para crear docentes'
+      });
+    }
 
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      idNumber,
+      birthDate,
+      institution,
+      grades,
+      phoneNumber
+    } = req.body;
+
+    // 🔎 Validar duplicados
+    const existingUser = await User.findOne({
+      $or: [{ email }, { idNumber }]
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        message: 'Correo o número de cédula ya registrado'
+      });
+    }
+
+    // 🏫 Si es director o secretario, forzar institución
+    let assignedInstitution = institution;
+
+    if (
+      req.user.role === 'director/a' ||
+      req.user.role === 'secretario/a'
+    ) {
+      assignedInstitution = req.user.institution;
+    }
+
+    const newDocente = new User({
+      firstName,
+      lastName,
+      email,
+      password,
+      idNumber,
+      birthDate,
+      institution: assignedInstitution,
+      grades,
+      phoneNumber,
+      role: 'docente', // 🔥 FORZADO
+      isActive: true,  // puedes decidir si activar directo o no
+    });
+
+    await newDocente.save();
+
+    res.status(201).json({
+      message: 'Docente creado correctamente',
+      docente: newDocente
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: 'Error al crear docente',
+      error: error.message
+    });
+  }
+};
 module.exports = {
   createUser,
   loginUser,
@@ -187,4 +264,5 @@ module.exports = {
   getUserById,
   deleteUser,
   updateUser,
+  createDocente
 };

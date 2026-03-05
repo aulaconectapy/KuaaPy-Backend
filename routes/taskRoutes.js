@@ -1,31 +1,52 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const protect = require('../middlewares/protect');
+const protect = require("../middlewares/protect");
 
 const {
   createTask,
   getTasks,
-  getTasksByGrade,
   getTaskById,
   updateTask,
   deleteTask,
   updateStudentTask,
   getStudentTasksByGrade,
   getStudentsSummaryByGrade,
-  getStudentTaskById
-} = require('../controllers/taskController');
+  getStudentTaskById,
+  getMyTasks
+} = require("../controllers/taskController");
 
+// ===============================
 // RUTAS TAREA
-router.post('/', protect, createTask);
-router.get('/', protect, getTasks);
-router.get('/grade/:grade', protect, getTasksByGrade); // Para alumnos
-router.get('/student-tasks/grade/:grade', protect, getStudentTasksByGrade); // Para docentes
-router.get('/:id', protect, getTaskById);
-router.put('/:id', protect, updateTask);
-router.put('/student-task/:studentTaskId', protect, updateStudentTask); // Cambiar estado por alumno
-router.delete('/:id', protect, deleteTask);
-router.get('/students-summary/:grade', protect, getStudentsSummaryByGrade);
-router.get('/student-task/:id', protect, getStudentTaskById);
+// ===============================
 
+// Crear tarea
+router.post("/", protect, createTask);
+
+// Obtener todas las tareas
+router.get("/", protect, getTasks);
+
+// Obtener tareas del estudiante logueado
+router.get("/student-tasks/my", protect, getMyTasks);
+
+// Obtener StudentTasks por grado (docentes)
+router.get("/student-tasks/grade/:grade", protect, getStudentTasksByGrade);
+
+// Obtener StudentTask por ID
+router.get("/student-task/:id", protect, getStudentTaskById);
+
+// Resumen de estudiantes por grado
+router.get("/students-summary/:grade", protect, getStudentsSummaryByGrade);
+
+// Obtener tarea por ID
+router.get("/:id", protect, getTaskById);
+
+// Actualizar tarea
+router.put("/:id", protect, updateTask);
+
+// Actualizar StudentTask
+router.put("/student-task/:studentTaskId", protect, updateStudentTask);
+
+// Eliminar tarea
+router.delete("/:id", protect, deleteTask);
 
 module.exports = router;
