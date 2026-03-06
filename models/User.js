@@ -73,7 +73,7 @@ email: {
 
   isActive: {
     type: Boolean,
-    default: false, // ⚡ Usuarios inactivos por defecto
+    default: true, // ⚡ Usuarios inactivos por defecto
   },
 
   createdAt: {

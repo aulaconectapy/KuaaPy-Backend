@@ -4,6 +4,8 @@ const userRoutes = require('./routes/userRoutes');
 const institutionRoutes = require('./routes/institutionRoutes');
 const apiTask = require('./routes/taskRoutes');
 const studentRoutes = require('./routes/studentRoutes');
+const reportRoutes = require("./routes/reportRoutes");
+
 
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -40,6 +42,7 @@ app.use('/api/auth', userRoutes);
 app.use('/api/institutions', institutionRoutes);  // Usamos las rutas para /institutions
 app.use('/api/tasks', apiTask);  
 app.use('/api/students', studentRoutes);
+app.use("/api/reports", reportRoutes);
 
 
 // Iniciar el servidor
