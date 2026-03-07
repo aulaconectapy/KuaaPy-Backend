@@ -10,8 +10,24 @@ const {
   updateStudent,
   deleteStudent,
   getMyTasks,
-  updateMyProfile
+  updateMyProfile,
+  getMyProfile   // 👈 agregar
 } = require('../controllers/studentController');
+
+
+// ================================
+// ESTUDIANTE LOGUEADO
+// ================================
+
+// Obtener perfil del estudiante logueado
+router.get('/my-profile', protect, getMyProfile); // 👈 NUEVO
+
+// Obtener MIS tareas
+router.get('/my-tasks', protect, getMyTasks);
+
+// Actualizar perfil del estudiante
+router.put('/my-profile', protect, updateMyProfile);
+
 
 // ================================
 // CRUD ADMINISTRADOR / DOCENTE
@@ -31,15 +47,5 @@ router.put('/:id', protect, updateStudent);
 
 // Eliminar
 router.delete('/:id', protect, deleteStudent);
-
-// ================================
-// ESTUDIANTE LOGUEADO
-// ================================
-
-// Obtener MIS tareas
-router.get('/my-tasks', protect, getMyTasks);
-
-// 🔹 ACTUALIZAR PERFIL DEL ESTUDIANTE (PADRES/ALUMNO)
-router.put('/my-profile', protect, updateMyProfile);
 
 module.exports = router;

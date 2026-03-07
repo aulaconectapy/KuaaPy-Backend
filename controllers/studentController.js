@@ -255,3 +255,18 @@ exports.getMyTasks = async (req, res) => {
     res.status(500).json({ message: 'Error al obtener tareas' });
   }
 };
+exports.getMyProfile = async (req, res) => {
+  try {
+
+    const student = await Student.findById(req.user.id);
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    res.json(student);
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

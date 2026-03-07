@@ -38,7 +38,7 @@ const createUser = async (req, res) => {
       phoneNumber,
       role,
       associatedChildren,
-      isActive: false, // ⚡ Inactivo hasta activación por admin/director
+      isActive: true, // ⚡ Inactivo hasta activación por admin/director
     });
 
     await newUser.save();
@@ -134,7 +134,6 @@ const deleteUser = async (req, res) => {
 };
 
 // ================================
-// Actualizar usuario
 // Actualizar usuario
 const updateUser = async (req, res) => {
   try {

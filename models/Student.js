@@ -15,8 +15,8 @@ const studentSchema = new Schema({
   },
   sex: {
     type: String,
-    enum: ['Masculino', 'Femenino', 'Otro'],
-    required: [true, 'El sexo es obligatorio'],
+    enum: ['Masculino', 'Femenino'],
+    required: [false, 'El sexo es obligatorio'],
   },
   cedula: {
     type: String,
