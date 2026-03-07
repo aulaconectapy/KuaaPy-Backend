@@ -1,20 +1,27 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const studentTaskSchema = new Schema({
-  task: { type: Schema.Types.ObjectId, ref: 'Task', required: true },
-  student: { type: Schema.Types.ObjectId, ref: 'Student', required: true },
-  status: { type: String, enum: ['pendiente', 'entregada', 'corregido'], default: 'pendiente' },
+  task: { type: Schema.Types.ObjectId, ref: "Task", required: true },
+  student: { type: Schema.Types.ObjectId, ref: "Student", required: true },
 
-  // Nuevo campo: puntajes por indicador
-  indicatorScores: [{
-    indicatorId: { type: Schema.Types.ObjectId, required: true },
-    points: { type: Number, default: 0, min: 0 }
-  }],
+  status: {
+    type: String,
+    enum: ["pendiente", "entregada", "corregido"],
+    default: "pendiente",
+  },
 
-  score: { type: Number, default: 0, min: 0 }, // suma automática de indicatorScores
-  comments: { type: String, default: '' },
-  updatedAt: { type: Date, default: Date.now },
-});
+  indicatorScores: [
+    {
+      indicatorId: { type: Schema.Types.ObjectId, required: true },
+      points: { type: Number, default: 0, min: 0 },
+    },
+  ],
 
-module.exports = mongoose.model('StudentTask', studentTaskSchema);
+  score: { type: Number, default: 0, min: 0 },
+
+  comments: { type: String, default: "" },
+
+}, { timestamps: true });
+
+module.exports = mongoose.model("StudentTask", studentTaskSchema);

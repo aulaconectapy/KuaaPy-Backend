@@ -2,18 +2,20 @@ const express = require('express');
 const connectDB = require('./config/db');
 const userRoutes = require('./routes/userRoutes');
 const institutionRoutes = require('./routes/institutionRoutes');
-const apiTask = require('./routes/taskRoutes');
+const studentTaskRoutes = require('./routes/studentTaskRoutes');
+
 const studentRoutes = require('./routes/studentRoutes');
 const reportRoutes = require("./routes/reportRoutes");
-
+const StudentTask = require("./models/StudentTask");
+const taskRoutes = require('./routes/taskRoutes');
 
 const dotenv = require('dotenv');
 const cors = require('cors');
 
-
 dotenv.config();
 
 const app = express();
+
 const allowedOrigins = [
   'http://localhost:3000',
   'https://aulaconectapy.netlify.app'
@@ -21,29 +23,32 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permitir solicitudes sin origen (como las hechas desde herramientas de prueba)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('No permitido por CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Métodos HTTP permitidos
-  credentials: true, // Permite cookies/sesiones si es necesario
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
 }));
+
 // Conectar a la base de datos
 connectDB();
 
 // Middleware
-app.use(express.json()); // Para parsear el cuerpo de las solicitudes como JSON
+app.use(express.json());
 
-// Rutas
+// RUTAS CORRECTAS
 app.use('/api/auth', userRoutes);
-app.use('/api/institutions', institutionRoutes);  // Usamos las rutas para /institutions
-app.use('/api/tasks', apiTask);  
-app.use('/api/students', studentRoutes);
-app.use("/api/reports", reportRoutes);
+app.use('/api/institutions', institutionRoutes);
+app.use('/api/students', studentRoutes); // Solo para gestión de perfiles de alumnos
+app.use('/api/tasks', studentTaskRoutes);      // Aquí viven tanto tareas generales como entregas
 
+app.use('/api/tasksTeacher', taskRoutes);      // Aquí viven tanto tareas generales como entregas
+
+
+app.use('/api/reports', reportRoutes);
 
 // Iniciar el servidor
 const PORT = process.env.PORT || 5000;

@@ -38,7 +38,7 @@ const taskSchema = new Schema({
   status: {
     type: String,
     enum: ['pendiente', 'publicada', 'cerrada'],
-    default: 'pendiente',
+    default: 'publicada',
   },
 
   institution: {

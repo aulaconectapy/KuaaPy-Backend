@@ -195,12 +195,12 @@ exports.getMyTasks = async (req, res) => {
     const studentTasks = await StudentTask.find({
       student: student._id,
     })
-      .populate({
-        path: "task",
-        match: {
-          status: "publicada",
-        },
-      })
+.populate({
+  path: "task",
+  select: "subject topic dueDate grade status",
+  match: { status: "publicada" }
+})
+      
       .sort({ createdAt: -1 });
 
     const filtered = studentTasks.filter((st) => st.task !== null);
