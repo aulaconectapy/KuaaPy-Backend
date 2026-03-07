@@ -1,20 +1,28 @@
 const Student = require('../models/Student');
 const User = require('../models/User');
-const Task = require('../models/Task');
 const StudentTask = require('../models/StudentTask');
 
 // ================================
 // CREAR ESTUDIANTE
+// ================================
 exports.createStudent = async (req, res) => {
   try {
     const {
       firstName,
       lastName,
+      sex,
       cedula,
       birthDate,
       institution,
       grade,
       guardian,
+      father,
+      mother,
+      allergies,
+      healthIssues,
+      reasonableAdjustments,
+      address,
+      observations,
       password
     } = req.body;
 
@@ -39,11 +47,19 @@ exports.createStudent = async (req, res) => {
     const student = new Student({
       firstName,
       lastName,
+      sex,
       cedula,
       birthDate,
       institution,
       grade,
       guardian,
+      father,
+      mother,
+      allergies,
+      healthIssues,
+      reasonableAdjustments,
+      address,
+      observations,
       user: user._id,
       createdBy: req.user.userId,
     });
@@ -57,9 +73,8 @@ exports.createStudent = async (req, res) => {
   }
 };
 
-
 // ================================
-// OBTENER TODOS
+// OBTENER TODOS LOS ESTUDIANTES
 // ================================
 exports.getAllStudents = async (req, res) => {
   try {
@@ -71,11 +86,13 @@ exports.getAllStudents = async (req, res) => {
 };
 
 // ================================
-// OBTENER POR ID
+// OBTENER ESTUDIANTE POR ID
 // ================================
 exports.getStudentById = async (req, res) => {
   try {
-    const student = await Student.findById(req.params.id);
+    const student = await Student.findById(req.params.id)
+      .populate('institution', 'name')
+      .populate('user', 'firstName lastName email idNumber');
     if (!student) {
       return res.status(404).json({ message: 'Estudiante no encontrado' });
     }
@@ -86,24 +103,48 @@ exports.getStudentById = async (req, res) => {
 };
 
 // ================================
-// ACTUALIZAR
-
-// ACTUALIZAR ESTUDIANTE
+// ACTUALIZAR ESTUDIANTE (ADMIN/CREADOR)
+// ================================
 exports.updateStudent = async (req, res) => {
   try {
-    const { firstName, lastName, birthDate, institution, grade, guardian, password } = req.body;
+    const {
+      firstName,
+      lastName,
+      sex,
+      birthDate,
+      grade, // ⚠️ no permitir cambiar institution desde aquí
+      guardian,
+      father,
+      mother,
+      allergies,
+      healthIssues,
+      reasonableAdjustments,
+      address,
+      observations,
+      password
+    } = req.body;
+
     const student = await Student.findById(req.params.id);
     if (!student) return res.status(404).json({ message: 'Estudiante no encontrado' });
 
+    // Actualización de campos
     student.firstName = firstName ?? student.firstName;
     student.lastName = lastName ?? student.lastName;
+    student.sex = sex ?? student.sex;
     student.birthDate = birthDate ?? student.birthDate;
-    student.institution = institution ?? student.institution;
     student.grade = grade ?? student.grade;
     student.guardian = guardian ?? student.guardian;
+    student.father = father ?? student.father;
+    student.mother = mother ?? student.mother;
+    student.allergies = allergies ?? student.allergies;
+    student.healthIssues = healthIssues ?? student.healthIssues;
+    student.reasonableAdjustments = reasonableAdjustments ?? student.reasonableAdjustments;
+    student.address = address ?? student.address;
+    student.observations = observations ?? student.observations;
 
     await student.save();
 
+    // Actualizar contraseña si se provee
     if (password) {
       const user = await User.findById(student.user);
       user.password = password;
@@ -119,7 +160,63 @@ exports.updateStudent = async (req, res) => {
 };
 
 // ================================
-// ELIMINAR
+// ACTUALIZAR PERFIL DEL ESTUDIANTE (PADRES/ALUMNOS)
+// ⚠️ No permite cambiar grado ni institución
+// ================================
+exports.updateMyProfile = async (req, res) => {
+  try {
+    const student = await Student.findOne({ user: req.user.userId });
+    if (!student) return res.status(404).json({ message: 'Estudiante no encontrado' });
+
+    const {
+      firstName,
+      lastName,
+      sex,
+      birthDate,
+      guardian,
+      father,
+      mother,
+      allergies,
+      healthIssues,
+      reasonableAdjustments,
+      address,
+      observations,
+      password
+    } = req.body;
+
+    // Actualizar campos permitidos
+    student.firstName = firstName ?? student.firstName;
+    student.lastName = lastName ?? student.lastName;
+    student.sex = sex ?? student.sex;
+    student.birthDate = birthDate ?? student.birthDate;
+    student.guardian = guardian ?? student.guardian;
+    student.father = father ?? student.father;
+    student.mother = mother ?? student.mother;
+    student.allergies = allergies ?? student.allergies;
+    student.healthIssues = healthIssues ?? student.healthIssues;
+    student.reasonableAdjustments = reasonableAdjustments ?? student.reasonableAdjustments;
+    student.address = address ?? student.address;
+    student.observations = observations ?? student.observations;
+
+    await student.save();
+
+    // Actualizar contraseña si se provee
+    if (password) {
+      const user = await User.findById(student.user);
+      user.password = password;
+      await user.save();
+    }
+
+    res.json({ message: 'Perfil actualizado correctamente' });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al actualizar perfil', error: error.message });
+  }
+};
+
+// ================================
+// ELIMINAR ESTUDIANTE
 // ================================
 exports.deleteStudent = async (req, res) => {
   try {
@@ -145,11 +242,8 @@ exports.deleteStudent = async (req, res) => {
 exports.getMyTasks = async (req, res) => {
   try {
     const student = await Student.findOne({ user: req.user.userId });
-
     if (!student) {
-      return res.status(404).json({
-        message: 'Estudiante no encontrado',
-      });
+      return res.status(404).json({ message: 'Estudiante no encontrado' });
     }
 
     const tasks = await StudentTask.find({ student: student._id })
@@ -158,8 +252,6 @@ exports.getMyTasks = async (req, res) => {
     res.json(tasks);
 
   } catch (error) {
-    res.status(500).json({
-      message: 'Error al obtener tareas',
-    });
+    res.status(500).json({ message: 'Error al obtener tareas' });
   }
 };

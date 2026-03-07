@@ -9,7 +9,8 @@ const {
   getStudentById,
   updateStudent,
   deleteStudent,
-  getMyTasks
+  getMyTasks,
+  updateMyProfile
 } = require('../controllers/studentController');
 
 // ================================
@@ -37,5 +38,8 @@ router.delete('/:id', protect, deleteStudent);
 
 // Obtener MIS tareas
 router.get('/my-tasks', protect, getMyTasks);
+
+// 🔹 ACTUALIZAR PERFIL DEL ESTUDIANTE (PADRES/ALUMNO)
+router.put('/my-profile', protect, updateMyProfile);
 
 module.exports = router;
