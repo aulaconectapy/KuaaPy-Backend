@@ -39,7 +39,7 @@ exports.createStudent = async (req, res) => {
       institution,
       role: 'estudiante',
       grades: [grade],
-      isActive: false, // ⚡ Inactivo hasta activar
+      isActive: true, // ⚡ Inactivo hasta activar
     });
     await user.save();
 
@@ -92,7 +92,7 @@ exports.getStudentById = async (req, res) => {
   try {
     const student = await Student.findById(req.params.id)
       .populate('institution', 'name')
-      .populate('user', 'firstName lastName email idNumber');
+      .populate('user', 'firstName lastName email idNumber isActive');
     if (!student) {
       return res.status(404).json({ message: 'Estudiante no encontrado' });
     }
@@ -268,5 +268,42 @@ exports.getMyProfile = async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+
+exports.toggleStudentStatus = async (req, res) => {
+  try {
+    // 1. Buscamos al estudiante y hacemos populate del usuario para estar seguros
+    const student = await Student.findById(req.params.id);
+
+    if (!student) {
+      return res.status(404).json({ message: 'Estudiante no encontrado' });
+    }
+
+    // 2. Buscamos al usuario usando el ID guardado en student.user
+    const user = await User.findById(student.user);
+
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario asociado no encontrado' });
+    }
+
+    // 3. Cambiamos el estado
+    user.isActive = !user.isActive;
+    
+    // 4. Usamos markModified si isActive es un esquema anidado (opcional pero seguro)
+    // user.markModified('isActive'); 
+
+    await user.save();
+
+    // 5. IMPORTANTE: Enviamos la respuesta con el nuevo estado
+    return res.json({
+      message: 'Estado actualizado correctamente',
+      isActive: user.isActive // Esto es lo que lee tu frontend
+    });
+
+  } catch (error) {
+    console.error("Error en toggleStudentStatus:", error);
+    res.status(500).json({ message: 'Error al cambiar estado' });
   }
 };
