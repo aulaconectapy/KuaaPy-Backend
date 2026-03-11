@@ -9,10 +9,19 @@ const StudentTask = require("../models/StudentTask");
 // ===============================
 exports.createTask = async (req, res) => {
   try {
-    const { subject, topic, grade, dueDate, indicators } = req.body;
+
+    const { subject, topic, grade, dueDate, indicators, taskType } = req.body;
 
     if (req.user.role !== "docente") {
       return res.status(403).json({ message: "Solo docentes pueden crear tareas" });
+    }
+
+    const validTypes = ["diagnostico", "formativo", "sumativo"];
+
+    if (!validTypes.includes(taskType)) {
+      return res.status(400).json({
+        message: "Tipo de tarea inválido",
+      });
     }
 
     const teacher = await User.findById(req.user.userId);
@@ -35,6 +44,7 @@ exports.createTask = async (req, res) => {
       subject,
       topic,
       grade,
+      taskType,
       dueDate,
       status: "publicada",
       institution: teacher.institution,
@@ -70,11 +80,14 @@ exports.createTask = async (req, res) => {
     });
 
   } catch (error) {
+
     console.error(error);
+
     res.status(500).json({
       message: "Error al crear tarea",
       error: error.message,
     });
+
   }
 };
 
@@ -100,8 +113,13 @@ exports.getTasks = async (req, res) => {
     res.json(tasks);
 
   } catch (error) {
+
     console.error(error);
-    res.status(500).json({ message: "Error al obtener tareas" });
+
+    res.status(500).json({
+      message: "Error al obtener tareas",
+    });
+
   }
 };
 
@@ -118,13 +136,19 @@ exports.getTaskById = async (req, res) => {
       .populate("institution", "name");
 
     if (!task) {
-      return res.status(404).json({ message: "Tarea no encontrada" });
+      return res.status(404).json({
+        message: "Tarea no encontrada",
+      });
     }
 
     res.json(task);
 
   } catch (error) {
-    res.status(500).json({ message: "Error al obtener tarea" });
+
+    res.status(500).json({
+      message: "Error al obtener tarea",
+    });
+
   }
 };
 
@@ -143,13 +167,19 @@ exports.updateTask = async (req, res) => {
     );
 
     if (!task) {
-      return res.status(404).json({ message: "Tarea no encontrada" });
+      return res.status(404).json({
+        message: "Tarea no encontrada",
+      });
     }
 
     res.json(task);
 
   } catch (error) {
-    res.status(500).json({ message: "Error al actualizar tarea" });
+
+    res.status(500).json({
+      message: "Error al actualizar tarea",
+    });
+
   }
 };
 
@@ -164,17 +194,27 @@ exports.deleteTask = async (req, res) => {
     const task = await Task.findById(req.params.id);
 
     if (!task) {
-      return res.status(404).json({ message: "Tarea no encontrada" });
+      return res.status(404).json({
+        message: "Tarea no encontrada",
+      });
     }
 
-    await StudentTask.deleteMany({ task: task._id });
+    await StudentTask.deleteMany({
+      task: task._id,
+    });
 
     await Task.findByIdAndDelete(req.params.id);
 
-    res.json({ message: "Tarea eliminada correctamente" });
+    res.json({
+      message: "Tarea eliminada correctamente",
+    });
 
   } catch (error) {
-    res.status(500).json({ message: "Error al eliminar tarea" });
+
+    res.status(500).json({
+      message: "Error al eliminar tarea",
+    });
+
   }
 };
 
@@ -186,21 +226,24 @@ exports.deleteTask = async (req, res) => {
 exports.getMyTasks = async (req, res) => {
   try {
 
-    const student = await Student.findOne({ user: req.user.userId });
+    const student = await Student.findOne({
+      user: req.user.userId,
+    });
 
     if (!student) {
-      return res.status(404).json({ message: "Estudiante no encontrado" });
+      return res.status(404).json({
+        message: "Estudiante no encontrado",
+      });
     }
 
     const studentTasks = await StudentTask.find({
       student: student._id,
     })
-.populate({
-  path: "task",
-  select: "subject topic dueDate grade status",
-  match: { status: "publicada" }
-})
-      
+      .populate({
+        path: "task",
+        select: "subject topic dueDate grade status taskType",
+        match: { status: "publicada" },
+      })
       .sort({ createdAt: -1 });
 
     const filtered = studentTasks.filter((st) => st.task !== null);
@@ -208,10 +251,13 @@ exports.getMyTasks = async (req, res) => {
     res.json(filtered);
 
   } catch (error) {
+
     console.error(error);
+
     res.status(500).json({
       message: "Error al obtener tareas del estudiante",
     });
+
   }
 };
 
@@ -228,13 +274,19 @@ exports.getStudentTaskById = async (req, res) => {
       .populate("task");
 
     if (!studentTask) {
-      return res.status(404).json({ message: "Entrega no encontrada" });
+      return res.status(404).json({
+        message: "Entrega no encontrada",
+      });
     }
 
     res.json(studentTask);
 
   } catch (error) {
-    res.status(500).json({ message: "Error al obtener entrega" });
+
+    res.status(500).json({
+      message: "Error al obtener entrega",
+    });
+
   }
 };
 
@@ -252,7 +304,9 @@ exports.updateStudentTask = async (req, res) => {
     const studentTask = await StudentTask.findById(studentTaskId);
 
     if (!studentTask) {
-      return res.status(404).json({ message: "StudentTask no encontrado" });
+      return res.status(404).json({
+        message: "StudentTask no encontrado",
+      });
     }
 
     if (status) {
@@ -283,9 +337,11 @@ exports.updateStudentTask = async (req, res) => {
     });
 
   } catch (error) {
+
     res.status(500).json({
       message: "Error al actualizar tarea del alumno",
     });
+
   }
 };
 
@@ -311,9 +367,11 @@ exports.getStudentTasksByGrade = async (req, res) => {
     res.json(filtered);
 
   } catch (error) {
+
     res.status(500).json({
       message: "Error al obtener tareas por grado",
     });
+
   }
 };
 
@@ -328,6 +386,7 @@ exports.getStudentsSummaryByGrade = async (req, res) => {
     const { grade } = req.params;
 
     const summary = await StudentTask.aggregate([
+
       {
         $lookup: {
           from: "tasks",
@@ -339,7 +398,9 @@ exports.getStudentsSummaryByGrade = async (req, res) => {
       { $unwind: "$task" },
 
       {
-        $match: { "task.grade": grade },
+        $match: {
+          "task.grade": grade,
+        },
       },
 
       {
@@ -358,15 +419,19 @@ exports.getStudentsSummaryByGrade = async (req, res) => {
           firstName: { $first: "$student.firstName" },
           lastName: { $first: "$student.lastName" },
           totalTasks: { $sum: 1 },
+
           pendientes: {
             $sum: { $cond: [{ $eq: ["$status", "pendiente"] }, 1, 0] },
           },
+
           entregadas: {
             $sum: { $cond: [{ $eq: ["$status", "entregada"] }, 1, 0] },
           },
+
           corregidas: {
             $sum: { $cond: [{ $eq: ["$status", "corregido"] }, 1, 0] },
           },
+
           totalScore: { $sum: "$score" },
         },
       },
@@ -382,13 +447,16 @@ exports.getStudentsSummaryByGrade = async (req, res) => {
           },
         },
       },
+
     ]);
 
     res.json(summary);
 
   } catch (error) {
+
     res.status(500).json({
       message: "Error al obtener resumen",
     });
+
   }
 };

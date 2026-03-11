@@ -18,6 +18,13 @@ const taskSchema = new Schema({
     required: true,
   },
 
+  // NUEVO CAMPO
+  taskType: {
+    type: String,
+    enum: ['diagnostico', 'formativo', 'sumativo'],
+    required: true,
+  },
+
   indicators: [{
     description: {
       type: String,
