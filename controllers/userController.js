@@ -71,13 +71,15 @@ const loginUser = async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ message: 'Contraseña incorrecta' });
     }
-
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '30m' }
-    );
-
+const token = jwt.sign(
+  { 
+    userId: user._id,
+    role: user.role,
+    institution: user.institution._id // 🔹 agregar esto
+  },
+  process.env.JWT_SECRET,
+  { expiresIn: '30m' }
+);
     res.status(200).json({ message: 'Login exitoso', token, role: user.role });
 
   } catch (error) {

@@ -1,13 +1,15 @@
 const express = require('express');
+const http = require('http');
+const { Server } = require("socket.io");
+
 const connectDB = require('./config/db');
 const userRoutes = require('./routes/userRoutes');
 const institutionRoutes = require('./routes/institutionRoutes');
 const studentTaskRoutes = require('./routes/studentTaskRoutes');
-
 const studentRoutes = require('./routes/studentRoutes');
-const reportRoutes = require("./routes/reportRoutes");
-const StudentTask = require("./models/StudentTask");
+const disciplineReportRoutes = require("./routes/disciplineReportRoutes");
 const taskRoutes = require('./routes/taskRoutes');
+const notificationRoutes = require('./routes/notifications');
 
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -15,6 +17,7 @@ const cors = require('cors');
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
 
 const allowedOrigins = [
   'http://localhost:3000',
@@ -33,25 +36,59 @@ app.use(cors({
   credentials: true,
 }));
 
-// Conectar a la base de datos
+// SOCKET.IO
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"]
+  }
+});
+
+// guardar usuarios conectados
+const connectedUsers = {};
+
+io.on("connection", (socket) => {
+  console.log("Usuario conectado:", socket.id);
+
+  socket.on("join", (userId) => {
+    connectedUsers[userId] = socket.id;
+    console.log("Usuario unido:", userId);
+  });
+
+  // Cuando un usuario se desconecta, eliminarlo de connectedUsers
+  socket.on("disconnect", () => {
+    console.log("Usuario desconectado:", socket.id);
+
+    for (const userId in connectedUsers) {
+      if (connectedUsers[userId] === socket.id) {
+        delete connectedUsers[userId];
+        console.log("Usuario removido de connectedUsers:", userId);
+        break;
+      }
+    }
+  });
+});
+
+// hacer accesible socket en rutas
+app.set("io", io);
+app.set("connectedUsers", connectedUsers);
+
+// conectar base de datos
 connectDB();
 
-// Middleware
 app.use(express.json());
 
-// RUTAS CORRECTAS
+// rutas
 app.use('/api/auth', userRoutes);
 app.use('/api/institutions', institutionRoutes);
-app.use('/api/students', studentRoutes); // Solo para gestión de perfiles de alumnos
-app.use('/api/tasks', studentTaskRoutes);      // Aquí viven tanto tareas generales como entregas
+app.use('/api/students', studentRoutes);
+app.use('/api/tasks', studentTaskRoutes);
+app.use('/api/tasksTeacher', taskRoutes);
+app.use('/api/report', disciplineReportRoutes);
+app.use('/api/notifications', notificationRoutes);
 
-app.use('/api/tasksTeacher', taskRoutes);      // Aquí viven tanto tareas generales como entregas
-
-
-app.use('/api/reports', reportRoutes);
-
-// Iniciar el servidor
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Servidor en puerto ${PORT}`);
+
+server.listen(PORT, () => {
+  console.log(`Servidor corriendo en puerto ${PORT}`);
 });

@@ -16,6 +16,7 @@ const protect = (req, res, next) => {
       req.user = {
         userId: decoded.userId,
         role: decoded.role, // 👈🔥 ESTA ERA LA CLAVE
+        institution: decoded.institution // 👈 NUEVO
       };
 
       next();

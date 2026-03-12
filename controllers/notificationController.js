@@ -1,21 +1,46 @@
-const Notification = require('../models/Notification');
+const Notification = require("../models/Notification");
 
 exports.getMyNotifications = async (req, res) => {
-  const notifications = await Notification.find({ user: req.user._id })
-    .sort({ createdAt: -1 });
 
-  res.json(notifications);
-};
+  try {
 
-exports.markAsRead = async (req, res) => {
-  const notification = await Notification.findById(req.params.id);
+    const notifications = await Notification.find({
+      user: req.user.userId
+    })
+    .sort({ createdAt: -1 })
+    .limit(20);
 
-  if (!notification || notification.user.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: 'No autorizado' });
+    res.json(notifications);
+
+  } catch (error) {
+
+    res.status(500).json({ message: error.message });
+
   }
 
-  notification.isRead = true;
-  await notification.save();
+};
 
-  res.json(notification);
+
+exports.markAsRead = async (req, res) => {
+
+  try {
+
+    const notification = await Notification.findByIdAndUpdate(
+
+      req.params.id,
+
+      { read: true },
+
+      { new: true }
+
+    );
+
+    res.json(notification);
+
+  } catch (error) {
+
+    res.status(500).json({ message: error.message });
+
+  }
+
 };
