@@ -101,20 +101,34 @@ exports.getTasks = async (req, res) => {
 
     let filter = {};
 
+    // 🔎 Ver qué usuario está autenticado
+    console.log("USUARIO AUTENTICADO:", req.user);
+
     if (req.user.role === "docente") {
+
+      console.log("ROL DOCENTE DETECTADO");
+
+      console.log("ID DEL DOCENTE (req.user.userId):", req.user.userId);
+
       filter.teacher = req.user.userId;
+
     }
+
+    console.log("FILTRO APLICADO A MONGODB:", filter);
 
     const tasks = await Task.find(filter)
       .populate("teacher", "firstName lastName")
       .populate("institution", "name")
       .sort({ createdAt: -1 });
 
+    console.log("TAREAS ENCONTRADAS:", tasks.length);
+    console.log("TAREAS:", tasks);
+
     res.json(tasks);
 
   } catch (error) {
 
-    console.error(error);
+    console.error("ERROR AL OBTENER TAREAS:", error);
 
     res.status(500).json({
       message: "Error al obtener tareas",
@@ -352,26 +366,25 @@ exports.updateStudentTask = async (req, res) => {
 // ===============================
 exports.getStudentTasksByGrade = async (req, res) => {
   try {
-
     const { grade } = req.params;
 
     const studentTasks = await StudentTask.find()
       .populate({
         path: "task",
-        match: { grade },
+        match: { grade }
       })
-      .populate("student", "firstName lastName grade");
+      .populate("student", "firstName lastName grade")
+      .populate({
+        path: "indicatorScores.indicatorId", // populate indicador
+        select: "description points"          // traemos descripción y puntos máximos
+      });
 
     const filtered = studentTasks.filter((st) => st.task !== null);
-
     res.json(filtered);
 
   } catch (error) {
-
-    res.status(500).json({
-      message: "Error al obtener tareas por grado",
-    });
-
+    console.error("Error getStudentTasksByGrade:", error);
+    res.status(500).json({ message: "Error al obtener tareas por grado" });
   }
 };
 

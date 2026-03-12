@@ -103,7 +103,6 @@ exports.updateStudentTask = async (req, res) => {
 // Listado para docente por grado
 exports.getStudentTasksByGrade = async (req, res) => {
   try {
-
     const { grade } = req.params;
 
     const studentTasks = await StudentTask.find()
@@ -111,7 +110,11 @@ exports.getStudentTasksByGrade = async (req, res) => {
         path: "task",
         match: { grade }
       })
-      .populate("student", "firstName lastName grade");
+      .populate("student", "firstName lastName grade")
+      .populate({
+        path: "indicatorScores.indicatorId", // <--- populamos indicador
+        select: "name"                        // solo traemos el nombre
+      });
 
     const filtered = studentTasks.filter((st) => st.task !== null);
 
