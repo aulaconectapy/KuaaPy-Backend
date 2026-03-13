@@ -257,21 +257,32 @@ exports.getMyTasks = async (req, res) => {
 };
 exports.getMyProfile = async (req, res) => {
   try {
+    console.log('getMyProfile called, req.user:', req.user);
 
-    const student = await Student.findById(req.user.id);
+    const userId = req.user?.userId; 
+    console.log('User ID usado para buscar en la colección de Students:', userId);
+
+    if (!userId) {
+      return res.status(400).json({ message: "Usuario no autenticado" });
+    }
+
+    // 🔹 CAMBIO CLAVE: Buscamos por el campo 'user', no por el '_id' del estudiante
+    const student = await Student.findOne({ user: userId })
+      .populate('institution'); // Puedes popular la institución si quieres mostrar el nombre
 
     if (!student) {
+      console.log('Student not found for user:', userId);
       return res.status(404).json({ message: "Student not found" });
     }
 
+    console.log('Student found:', student.firstName, student.lastName);
     res.json(student);
 
   } catch (error) {
+    console.error('Error en getMyProfile:', error);
     res.status(500).json({ message: error.message });
   }
 };
-
-
 exports.toggleStudentStatus = async (req, res) => {
   try {
     // 1. Buscamos al estudiante y hacemos populate del usuario para estar seguros

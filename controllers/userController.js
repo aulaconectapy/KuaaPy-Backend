@@ -139,45 +139,79 @@ const deleteUser = async (req, res) => {
 // Actualizar usuario
 const updateUser = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { isActive, password, ...otherFields } = req.body; // Separar isActive y password
 
-    // Evitar cambiar password acá (opcional)
+    console.log("==== UPDATE USER REQUEST ====");
+    console.log("Usuario que hace la petición:", req.user);
+    console.log("ID del usuario a editar:", req.params.userId);
+    console.log("Datos recibidos:", req.body);
+
+    const { userId } = req.params;
+    const { isActive, password, ...otherFields } = req.body;
+
+    // Evitar cambiar password acá
     if (password) {
+      console.log("⚠ Intento de cambiar contraseña ignorado");
       delete req.body.password;
     }
 
     const user = await User.findById(userId);
+
     if (!user) {
+      console.log("❌ Usuario no encontrado");
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
+    console.log("Usuario encontrado en DB:", user._id);
+
     // Actualizar campos generales
     Object.keys(otherFields).forEach(field => {
+      console.log(`Actualizando campo: ${field} ->`, otherFields[field]);
       user[field] = otherFields[field] ?? user[field];
     });
 
     // 🔒 Solo admin/director pueden cambiar isActive
     if (typeof isActive !== 'undefined') {
-      if (req.user.role === 'administrador' || req.user.role === 'director/a') {
+
+      console.log("Intentando cambiar isActive a:", isActive);
+      console.log("Rol del usuario que edita:", req.user.role);
+
+      if (req.user.role === 'administrador' || req.user.role === 'director/a'|| req.user.role === '') {
+
+        console.log("✅ Permiso concedido para cambiar isActive");
         user.isActive = isActive;
+
       } else {
-        return res.status(403).json({ message: 'No tienes permisos para cambiar el estado del usuario' });
+
+        console.log("⛔ BLOQUEADO: usuario sin permisos para cambiar isActive");
+
+        return res.status(403).json({
+          message: 'No tienes permisos para cambiar el estado del usuario'
+        });
+
       }
     }
 
     await user.save();
 
+    console.log("✅ Usuario actualizado correctamente");
+
     const userObject = user.toObject();
-    delete userObject.password; // No enviar password al frontend
+    delete userObject.password;
 
     res.json({
       message: 'Usuario actualizado correctamente',
       user: userObject,
     });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error al actualizar usuario', error: error.message });
+
+    console.error("🔥 ERROR UPDATE USER:", error);
+
+    res.status(500).json({
+      message: 'Error al actualizar usuario',
+      error: error.message
+    });
+
   }
 };
 // ================================
@@ -258,6 +292,66 @@ const createDocente = async (req, res) => {
     });
   }
 };
+// Actualizar mi propio perfil
+const updateMyProfile = async (req, res) => {
+  try {
+    console.log('==== UPDATE MY PROFILE REQUEST ====');
+    console.log('Usuario que hace la petición:', req.user);
+    console.log('Datos recibidos:', req.body);
+
+    const userId = req.user.userId;
+
+    const {
+      firstName,
+      lastName,
+      email,
+      phoneNumber,
+      birthDate,
+      idNumber // 🔹 Agregado para actualizar cédula
+    } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // actualizar solo datos permitidos
+    user.firstName = firstName ?? user.firstName;
+    user.lastName = lastName ?? user.lastName;
+    user.email = email ?? user.email;
+    user.phoneNumber = phoneNumber ?? user.phoneNumber;
+    user.birthDate = birthDate ?? user.birthDate;
+    user.idNumber = idNumber ?? user.idNumber; // 🔹 Actualizar cédula
+
+    await user.save();
+
+    const userObject = user.toObject();
+    delete userObject.password;
+
+    console.log('✅ Perfil actualizado correctamente. Nuevos datos:', {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      birthDate: user.birthDate,
+      idNumber: user.idNumber // 🔹 Mostrar cédula actualizada
+    });
+
+    res.json({
+      message: 'Perfil actualizado correctamente',
+      user: userObject
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: 'Error al actualizar perfil',
+      error: error.message
+    });
+  }
+};
 module.exports = {
   createUser,
   loginUser,
@@ -265,5 +359,6 @@ module.exports = {
   getUserById,
   deleteUser,
   updateUser,
-  createDocente
+  createDocente,
+  updateMyProfile
 };
