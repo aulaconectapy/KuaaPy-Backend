@@ -21,7 +21,8 @@ const server = http.createServer(app);
 
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://aulaconectapy.netlify.app'
+  'https://aulaconectapy.netlify.app',
+  'https://colegioprivadomariaauxiliadora.netlify.app'
 ];
 
 app.use(cors({
