@@ -1,7 +1,24 @@
 const StudentTask = require("../models/StudentTask");
 const Student = require("../models/Student");
+const mongoose = require('mongoose'); // Importante para convertir el ID
 
+// Colócalo al principio de tu archivo studentTaskController.js
+const calculateRSA = (m1, m2, m3) => {
+  // Convertimos 1 a "L" y 0 a "ANL" para procesar
+  const v1 = m1 === 1 ? "L" : "ANL";
+  const v2 = m2 === 1 ? "L" : "ANL";
+  const v3 = m3 === 1 ? "L" : "ANL";
+
+  // Aplicación de tu fórmula de Excel:
+  // (L,L,L)->L; (ANL,ANL,ANL)->ANL; (ANL,L,L)->L; (ANL,L,ANL)->ANL; 
+  // (L,L,ANL)->ANL; (ANL,ANL,L)->L; (L,ANL,ANL)->ANL; (L,ANL,L)->L
+  
+  if (v3 === "L") return "L"; 
+  return "ANL";
+};
+// ===============================
 // Obtener entrega específica por ID
+// ===============================
 exports.getStudentTaskById = async (req, res) => {
   try {
     const studentTask = await StudentTask.findById(req.params.id)
@@ -18,28 +35,38 @@ exports.getStudentTaskById = async (req, res) => {
     res.status(500).json({ message: "Error al obtener entrega" });
   }
 };
+// En controllers/studentTaskController.js
+exports.getStudentTasksByStudentId = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    
+    const tasks = await StudentTask.find({ student: studentId })
+      .populate({
+        path: "task",
+        // Aquí traemos explícitamente los campos del modelo Task
+        select: "subject topic instrumentType indicators rubricCriteria dueDate" 
+      })
+      .populate("student", "firstName lastName grade")
+      .sort({ createdAt: -1 });
 
-
+    res.json(tasks);
+  } catch (error) {
+    console.error("Error en getStudentTasksByStudentId:", error);
+    res.status(500).json({ message: "Error al obtener historial" });
+  }
+};
+// ===============================
 // Obtener tareas del estudiante logueado
+// ===============================
 exports.getMyTasks = async (req, res) => {
   try {
-
-    console.log("🔐 USER desde token:", req.user);
-
     if (!req.user || !req.user.userId) {
       return res.status(401).json({ message: "Token inválido o usuario no identificado" });
     }
 
-    // Buscar estudiante asociado al usuario
     const student = await Student.findOne({ user: req.user.userId });
+    if (!student) return res.status(404).json({ message: "Estudiante no encontrado" });
 
-    console.log("🎓 STUDENT encontrado:", student);
-
-    if (!student) {
-      return res.status(404).json({ message: "Estudiante no encontrado" });
-    }
-
-    // Buscar tareas del estudiante
     const myTasks = await StudentTask.find({ student: student._id })
       .populate({
         path: "task",
@@ -47,60 +74,120 @@ exports.getMyTasks = async (req, res) => {
       })
       .sort({ createdAt: -1 });
 
-    const filtered = myTasks.filter((st) => st.task !== null);
-
-    console.log("📚 Tareas encontradas:", filtered.length);
+    const filtered = myTasks.filter(st => st.task !== null);
 
     res.json(filtered);
-
   } catch (error) {
-    console.error("❌ Error getMyTasks:", error);
+    console.error("Error getMyTasks:", error);
     res.status(500).json({ message: "Error al obtener mis tareas" });
   }
 };
 
 
-// Calificar / Actualizar entrega
+// ===============================
+// Actualizar / Calificar entrega
+// ===============================
+// ===============================
+// Actualizar / Calificar entrega
+// ===============================
 exports.updateStudentTask = async (req, res) => {
   try {
     const { studentTaskId } = req.params;
-    const { status, comments, indicatorScores } = req.body;
 
-    const studentTask = await StudentTask.findById(studentTaskId);
+    // DEBUG: Revisa tu consola de Node para ver si estos datos llegan o vienen undefined
+    console.log("--- INICIO UPDATE STUDENT TASK ---");
+    console.log("ID Recibido:", studentTaskId);
+    console.log("Body Recibido:", JSON.stringify(req.body, null, 2));
 
+    const { status, comments, indicatorScores, rsaResults, rubricScores } = req.body;
+
+    const studentTask = await StudentTask.findById(studentTaskId).populate("task");
     if (!studentTask) {
+      console.log("Error: Entrega no encontrada en DB");
       return res.status(404).json({ message: "Entrega no encontrada" });
     }
 
+    // Actualización de campos simples
     if (status) studentTask.status = status;
     if (comments !== undefined) studentTask.comments = comments;
 
-    if (Array.isArray(indicatorScores)) {
-      studentTask.indicatorScores = indicatorScores;
+    const instrument = studentTask.task.instrumentType;
+    console.log("Tipo de instrumento detectado:", instrument);
 
-      studentTask.score = indicatorScores.reduce(
-        (sum, i) => sum + (i.points || 0),
-        0
-      );
+    // --- LÓGICA RSA ---
+    if (instrument === "rsa") {
+      // Usamos el array que viene o el que ya tiene la tarea para no borrar datos por error
+      const scores = indicatorScores || studentTask.indicatorScores || [];
+      studentTask.indicatorScores = scores;
+      
+      if (scores.length > 0) {
+        const indicatorIds = [...new Set(scores.map(is => is.indicatorId.toString()))];
+        let totalLogrados = 0;
+
+        indicatorIds.forEach(id => {
+          const m1 = scores.find(is => is.indicatorId.toString() === id && is.moment === 1)?.points || 0;
+          const m2 = scores.find(is => is.indicatorId.toString() === id && is.moment === 2)?.points || 0;
+          const m3 = scores.find(is => is.indicatorId.toString() === id && is.moment === 3)?.points || 0;
+
+          // Usamos Number() para asegurar que la comparación sea numérica
+          if (calculateRSA(Number(m1), Number(m2), Number(m3)) === "L") {
+            totalLogrados++;
+          }
+        });
+
+        studentTask.rsaFinalResult = totalLogrados;
+        studentTask.score = totalLogrados;
+      }
+      
+      if (rsaResults) studentTask.rsaResults = rsaResults;
+      
+      studentTask.markModified('indicatorScores');
+      studentTask.markModified('rsaResults');
     }
 
-    studentTask.updatedAt = new Date();
+    // --- LÓGICA LISTA DE COTEJO ---
+    if (instrument === "lista_cotejo") {
+      const scores = indicatorScores || [];
+      studentTask.indicatorScores = scores;
+      studentTask.score = scores.reduce((sum, i) => sum + (Number(i.points) || 0), 0);
+      studentTask.markModified('indicatorScores');
+    }
 
-    await studentTask.save();
+    // --- LÓGICA RÚBRICA ---
+    if (instrument === "rubrica") {
+      const scores = rubricScores || [];
+      console.log("Procesando rúbrica con scores:", scores.length);
+      
+      studentTask.rubricScores = scores;
+      studentTask.score = scores.reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+      
+      // CRITICO: Forzar a Mongoose a ver el cambio en el array
+      studentTask.markModified('rubricScores');
+    }
 
-    res.json({
-      message: "Tarea actualizada",
-      studentTask
+    // Guardar cambios en la base de datos
+    const savedTask = await studentTask.save();
+    
+    console.log("Resultado final guardado - Score:", savedTask.score);
+    console.log("--- FIN UPDATE STUDENT TASK ---");
+
+    res.json({ 
+      message: "Evaluación actualizada con éxito", 
+      studentTask: savedTask 
     });
 
   } catch (error) {
-    console.error("Error updateStudentTask:", error);
-    res.status(500).json({ message: "Error al actualizar tarea" });
+    console.error("Error CRITICO en updateStudentTask:", error);
+    res.status(500).json({ 
+      message: "Error al actualizar", 
+      error: error.message 
+    });
   }
 };
 
-
-// Listado para docente por grado
+// ===============================
+// Listado de StudentTask por grado (docente)
+// ===============================
 exports.getStudentTasksByGrade = async (req, res) => {
   try {
     const { grade } = req.params;
@@ -112,26 +199,40 @@ exports.getStudentTasksByGrade = async (req, res) => {
       })
       .populate("student", "firstName lastName grade")
       .populate({
-        path: "indicatorScores.indicatorId", // <--- populamos indicador
-        select: "name"                        // solo traemos el nombre
+        path: "indicatorScores.indicatorId",
+        select: "description points"
       });
 
-    const filtered = studentTasks.filter((st) => st.task !== null);
-
+    const filtered = studentTasks.filter(st => st.task !== null);
     res.json(filtered);
-
   } catch (error) {
     console.error("Error getStudentTasksByGrade:", error);
     res.status(500).json({ message: "Error al obtener tareas por grado" });
   }
 };
 
+// ===============================
+// Resumen de estudiantes por grado
+// ===============================
 
-// Resumen estadístico por grado
+
 exports.getStudentsSummaryByGrade = async (req, res) => {
   try {
-
     const { grade } = req.params;
+    const { institutionId } = req.query;
+
+    const matchQuery = {};
+
+    // 1. Filtro de Grado
+    if (grade !== 'all') {
+      matchQuery["task.grade"] = grade;
+    }
+
+    // 2. Filtro de Institución (CORRECCIÓN CLAVE)
+    if (institutionId) {
+      // Convertimos el string que viene por query en un ObjectId real de MongoDB
+      matchQuery["student.institution"] = new mongoose.Types.ObjectId(institutionId);
+    }
 
     const summary = await StudentTask.aggregate([
       {
@@ -143,13 +244,6 @@ exports.getStudentsSummaryByGrade = async (req, res) => {
         }
       },
       { $unwind: "$task" },
-
-      {
-        $match: {
-          "task.grade": grade
-        }
-      },
-
       {
         $lookup: {
           from: "students",
@@ -158,56 +252,39 @@ exports.getStudentsSummaryByGrade = async (req, res) => {
           as: "student"
         }
       },
-
       { $unwind: "$student" },
+      
+      // Aplicamos el match después de los lookups para tener acceso a student e institution
+      { $match: matchQuery },
 
       {
         $group: {
           _id: "$student._id",
           firstName: { $first: "$student.firstName" },
           lastName: { $first: "$student.lastName" },
-
           totalTasks: { $sum: 1 },
-
-          pendientes: {
-            $sum: {
-              $cond: [{ $eq: ["$status", "pendiente"] }, 1, 0]
-            }
+          pendientes: { $sum: { $cond: [{ $eq: ["$status", "pendiente"] }, 1, 0] } },
+          corregidas: { $sum: { $cond: [{ $eq: ["$status", "corregido"] }, 1, 0] } },
+          
+          listaCotejoLogrado: {
+            $sum: { $cond: [{ $eq: ["$task.instrumentType", "lista_cotejo"] }, "$score", 0] }
+          },
+          rubricaLogrado: {
+            $sum: { $cond: [{ $eq: ["$task.instrumentType", "rubrica"] }, "$score", 0] }
+          },
+          rsaLogrado: {
+            $sum: { $cond: [{ $eq: ["$task.instrumentType", "rsa"] }, "$score", 0] }
           },
 
-          entregadas: {
-            $sum: {
-              $cond: [{ $eq: ["$status", "entregada"] }, 1, 0]
-            }
-          },
-
-          corregidas: {
-            $sum: {
-              $cond: [{ $eq: ["$status", "corregido"] }, 1, 0]
-            }
-          },
-
-          totalScore: { $sum: "$score" }
+          puntosGlobalLogrado: { $sum: "$score" }
         }
       },
-
-      {
-        $addFields: {
-          promedio: {
-            $cond: [
-              { $gt: ["$totalTasks", 0] },
-              { $divide: ["$totalScore", "$totalTasks"] },
-              0
-            ]
-          }
-        }
-      }
+      { $sort: { lastName: 1 } }
     ]);
 
     res.json(summary);
-
   } catch (error) {
-    console.error("Error getStudentsSummaryByGrade:", error);
+    console.error("Error en getStudentsSummaryByGrade:", error);
     res.status(500).json({ message: "Error al obtener resumen" });
   }
 };

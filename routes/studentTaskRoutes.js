@@ -6,7 +6,8 @@ const {
   updateStudentTask,
   getStudentTasksByGrade,
   getMyTasks,
-  getStudentsSummaryByGrade
+  getStudentsSummaryByGrade, 
+  getStudentTasksByStudentId
 } = require("../controllers/studentTaskController");
 
 // Ordenamos de lo más específico a lo más general
@@ -16,6 +17,7 @@ router.get("/summary/:grade", protect, getStudentsSummaryByGrade);
 router.get("/grade/:grade", protect, getStudentTasksByGrade);
 router.get("/:id", protect, getStudentTaskById);
 router.put("/:studentTaskId", protect, updateStudentTask);
-
+// NUEVA RUTA: Obtener historial de tareas de un estudiante específico (para el docente)
+router.get('/:studentId/tasks', protect, getStudentTasksByStudentId);
 
 module.exports = router;
