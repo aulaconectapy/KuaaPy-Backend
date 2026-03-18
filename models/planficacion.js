@@ -43,11 +43,11 @@ const BloqueMateriaSchema = new mongoose.Schema({
 const DiaPlanificacionSchema = new mongoose.Schema({
   fecha: { 
     type: Date, 
-    required: true 
+    required: false 
   },
   nombreDia: { 
     type: String, 
-    enum: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'],
+    enum: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'],
     required: true 
   },
   // AQUÍ ESTÁ EL CAMBIO CLAVE: Un array de materias
