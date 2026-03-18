@@ -10,6 +10,7 @@ const studentRoutes = require('./routes/studentRoutes');
 const disciplineReportRoutes = require("./routes/disciplineReportRoutes");
 const taskRoutes = require('./routes/taskRoutes');
 const notificationRoutes = require('./routes/notifications');
+const planificacionRoutes = require('./routes/planificacionRoutes');
 
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -87,6 +88,7 @@ app.use('/api/tasks', studentTaskRoutes);
 app.use('/api/tasksTeacher', taskRoutes);
 app.use('/api/report', disciplineReportRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/planificaciones', planificacionRoutes);
 
 const PORT = process.env.PORT || 5000;
 
