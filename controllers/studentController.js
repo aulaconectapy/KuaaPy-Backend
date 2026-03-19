@@ -1,9 +1,11 @@
 const Student = require('../models/Student');
 const User = require('../models/User');
 const StudentTask = require('../models/StudentTask');
+const Task = require('../models/Task'); // 👈 IMPORTANTE: Añadir esta importación
+
 
 // ================================
-// CREAR ESTUDIANTE
+// CREAR ESTUDIANTE + ASIGNAR TAREAS EXISTENTES
 // ================================
 exports.createStudent = async (req, res) => {
   try {
@@ -15,21 +17,14 @@ exports.createStudent = async (req, res) => {
       birthDate,
       institution,
       grade,
-      guardian,
-      father,
-      mother,
-      allergies,
-      healthIssues,
-      reasonableAdjustments,
-      address,
-      observations,
-      password
+      password,
+      // ... otros campos que ya recibes
     } = req.body;
 
     const exists = await Student.findOne({ cedula });
     if (exists) return res.status(400).json({ message: 'Ya existe un estudiante con esta cédula.' });
 
-    // 🔐 Crear USER inactivo
+    // 1. Crear USER
     const user = new User({
       firstName,
       lastName,
@@ -39,40 +34,79 @@ exports.createStudent = async (req, res) => {
       institution,
       role: 'estudiante',
       grades: [grade],
-      isActive: true, // ⚡ Inactivo hasta activar
+      isActive: true, 
     });
     await user.save();
 
-    // 🎓 Crear STUDENT
+    // 2. Crear STUDENT
     const student = new Student({
-      firstName,
-      lastName,
-      sex,
-      cedula,
-      birthDate,
-      institution,
-      grade,
-      guardian,
-      father,
-      mother,
-      allergies,
-      healthIssues,
-      reasonableAdjustments,
-      address,
-      observations,
+      ...req.body, // Simplificamos usando spread pero aseguramos el vínculo con user
       user: user._id,
       createdBy: req.user.userId,
     });
     await student.save();
 
-    res.status(201).json({ message: 'Estudiante creado correctamente. Pendiente de activación' });
+    // ============================================================
+    // ⚡ LÓGICA DE ASIGNACIÓN AUTOMÁTICA DE TAREAS PREVIAS
+    // ============================================================
+    
+    // Buscamos tareas que ya existan para ese grado e institución y estén publicadas
+    const existingTasks = await Task.find({
+      grade: grade,
+      institution: institution,
+      status: "publicada"
+    });
+
+    if (existingTasks.length > 0) {
+      const studentTasksToCreate = existingTasks.map(task => {
+        const base = {
+          task: task._id,
+          student: student._id,
+          status: "pendiente",
+          score: 0,
+          comments: ""
+        };
+
+        // Inicializar según el tipo de instrumento (Igual que en tu TaskController)
+        if (task.instrumentType === "lista_cotejo" || task.instrumentType === "rsa") {
+          base.indicatorScores = [];
+        }
+
+        if (task.instrumentType === "rsa") {
+          base.rsaResults = [
+            { moment: 1, result: null },
+            { moment: 2, result: null },
+            { moment: 3, result: null }
+          ];
+          base.rsaFinalResult = null;
+        }
+
+        if (task.instrumentType === "rubrica") {
+          base.rubricScores = (task.rubricCriteria || []).map(c => ({
+            criterion: c.criterion,
+            level: null,
+            points: 0
+          }));
+        }
+
+        return base;
+      });
+
+      // Insertamos todas las tareas de golpe
+      await StudentTask.insertMany(studentTasksToCreate);
+      console.log(`Se asignaron ${existingTasks.length} tareas previas al estudiante ${firstName}`);
+    }
+
+    res.status(201).json({ 
+      message: 'Estudiante creado y tareas asignadas correctamente.',
+      tasksAssigned: existingTasks.length 
+    });
 
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error al crear estudiante', error: error.message });
   }
 };
-
 // ================================
 // OBTENER TODOS LOS ESTUDIANTES
 // ================================
