@@ -197,8 +197,13 @@ exports.updateStudent = async (req, res) => {
 // ACTUALIZAR PERFIL DEL ESTUDIANTE (PADRES/ALUMNOS)
 // ⚠️ No permite cambiar grado ni institución
 // ================================
+// ================================
+// ACTUALIZAR PERFIL DEL ESTUDIANTE (PADRES/ALUMNOS)
+// Sincroniza datos con la colección User
+// ================================
 exports.updateMyProfile = async (req, res) => {
   try {
+    // 1. Buscar al estudiante y popular al usuario para tener acceso a ambos
     const student = await Student.findOne({ user: req.user.userId });
     if (!student) return res.status(404).json({ message: 'Estudiante no encontrado' });
 
@@ -218,7 +223,7 @@ exports.updateMyProfile = async (req, res) => {
       password
     } = req.body;
 
-    // Actualizar campos permitidos
+    // 2. Actualizar campos en el modelo Student
     student.firstName = firstName ?? student.firstName;
     student.lastName = lastName ?? student.lastName;
     student.sex = sex ?? student.sex;
@@ -234,21 +239,32 @@ exports.updateMyProfile = async (req, res) => {
 
     await student.save();
 
-    // Actualizar contraseña si se provee
-    if (password) {
-      const user = await User.findById(student.user);
-      user.password = password;
+    // 3. ⚡ SINCRONIZACIÓN CON USER:
+    // Buscamos el usuario relacionado para actualizar los datos duplicados
+    const user = await User.findById(student.user);
+    if (user) {
+      user.firstName = firstName ?? user.firstName;
+      user.lastName = lastName ?? user.lastName;
+      user.birthDate = birthDate ?? user.birthDate;
+      
+      // Actualizar contraseña solo si se envió una nueva
+      if (password && password.trim() !== "") {
+        user.password = password;
+      }
+
       await user.save();
     }
 
-    res.json({ message: 'Perfil actualizado correctamente' });
+    res.json({ 
+      message: 'Perfil y datos de usuario actualizados correctamente',
+      student 
+    });
 
   } catch (error) {
-    console.error(error);
+    console.error('Error en updateMyProfile (Student):', error);
     res.status(500).json({ message: 'Error al actualizar perfil', error: error.message });
   }
 };
-
 // ================================
 // ELIMINAR ESTUDIANTE
 // ================================
