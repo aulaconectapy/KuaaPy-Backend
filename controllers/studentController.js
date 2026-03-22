@@ -136,6 +136,7 @@ exports.getStudentById = async (req, res) => {
   }
 };
 
+
 // ================================
 // ACTUALIZAR ESTUDIANTE (ADMIN/CREADOR)
 // ================================
@@ -145,8 +146,9 @@ exports.updateStudent = async (req, res) => {
       firstName,
       lastName,
       sex,
+      cedula, 
       birthDate,
-      grade, // ⚠️ no permitir cambiar institution desde aquí
+      grade,
       guardian,
       father,
       mother,
@@ -158,13 +160,15 @@ exports.updateStudent = async (req, res) => {
       password
     } = req.body;
 
+    // 1. Buscar al estudiante
     const student = await Student.findById(req.params.id);
     if (!student) return res.status(404).json({ message: 'Estudiante no encontrado' });
 
-    // Actualización de campos
+    // 2. Actualizar campos en el modelo Student
     student.firstName = firstName ?? student.firstName;
     student.lastName = lastName ?? student.lastName;
     student.sex = sex ?? student.sex;
+    student.cedula = cedula ?? student.cedula;
     student.birthDate = birthDate ?? student.birthDate;
     student.grade = grade ?? student.grade;
     student.guardian = guardian ?? student.guardian;
@@ -178,21 +182,58 @@ exports.updateStudent = async (req, res) => {
 
     await student.save();
 
-    // Actualizar contraseña si se provee
-    if (password) {
-      const user = await User.findById(student.user);
-      user.password = password;
+    // 3. ⚡ SINCRONIZACIÓN CON EL MODELO USER
+    const user = await User.findById(student.user);
+    if (user) {
+      user.firstName = firstName ?? user.firstName;
+      user.lastName = lastName ?? user.lastName;
+      user.birthDate = birthDate ?? user.birthDate;
+      
+      // Sincronizar idNumber (Login) con la nueva cédula
+      if (cedula) {
+        user.idNumber = cedula;
+      }
+
+      // Actualizar contraseña si se envió
+      if (password && password.trim() !== "") {
+        user.password = password;
+      }
+
       await user.save();
+      console.log(`Usuario ${user._id} sincronizado correctamente.`);
     }
 
-    res.json({ message: 'Estudiante actualizado correctamente' });
+    res.json({ 
+      message: 'Estudiante y credenciales actualizados correctamente',
+      student 
+    });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error al actualizar estudiante', error: error.message });
+    console.error('Error en updateStudent:', error);
+
+    // ⚡ CAPTURA DE ERROR DE DUPLICADOS (Cédula ya existe)
+    if (error.code === 11000) {
+      const key = Object.keys(error.keyPattern)[0];
+      const msg = (key === 'idNumber' || key === 'cedula') 
+        ? "Esta cédula ya pertenece a otro usuario registrado." 
+        : "Error: Ya existe un registro con estos datos únicos.";
+      
+      return res.status(400).json({ 
+        message: msg, 
+        errors: { cedula: msg } 
+      });
+    }
+
+    // Errores de validación de esquema
+    if (error.name === 'ValidationError') {
+      const errors = {};
+      Object.keys(error.errors).forEach(k => errors[k] = error.errors[k].message);
+      return res.status(400).json({ message: "Datos inválidos", errors });
+    }
+
+    res.status(500).json({ message: 'Error interno del servidor', error: error.message });
   }
 };
-
 // ================================
 // ACTUALIZAR PERFIL DEL ESTUDIANTE (PADRES/ALUMNOS)
 // ⚠️ No permite cambiar grado ni institución
