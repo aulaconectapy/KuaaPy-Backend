@@ -78,7 +78,7 @@ const token = jwt.sign(
     institution: user.institution._id // 🔹 agregar esto
   },
   process.env.JWT_SECRET,
-  { expiresIn: '30m' }
+  { expiresIn: '120m' }
 );
     res.status(200).json({ message: 'Login exitoso', token, role: user.role });
 
