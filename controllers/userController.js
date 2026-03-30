@@ -148,12 +148,6 @@ const updateUser = async (req, res) => {
     const { userId } = req.params;
     const { isActive, password, ...otherFields } = req.body;
 
-    // Evitar cambiar password acá
-    if (password) {
-      console.log("⚠ Intento de cambiar contraseña ignorado");
-      delete req.body.password;
-    }
-
     const user = await User.findById(userId);
 
     if (!user) {
@@ -163,35 +157,57 @@ const updateUser = async (req, res) => {
 
     console.log("Usuario encontrado en DB:", user._id);
 
-    // Actualizar campos generales
+    // ============================
+    // 🔹 Actualizar campos generales
     Object.keys(otherFields).forEach(field => {
       console.log(`Actualizando campo: ${field} ->`, otherFields[field]);
       user[field] = otherFields[field] ?? user[field];
     });
 
-    // 🔒 Solo admin/director pueden cambiar isActive
+    // ============================
+    // 🔐 CAMBIO DE CONTRASEÑA
+    if (password && password.trim() !== '') {
+
+      console.log("🔐 Intentando cambiar contraseña");
+      console.log("Rol del usuario que edita:", req.user.role);
+
+      if (
+        req.user.role === 'administrador' ||
+        req.user.role === 'director/a'
+      ) {
+        console.log("✅ Permiso concedido para cambiar contraseña");
+        user.password = password; // 👉 se encripta en pre('save')
+      } else {
+        console.log("⛔ BLOQUEADO: sin permisos para cambiar contraseña");
+        return res.status(403).json({
+          message: 'No tienes permisos para cambiar la contraseña'
+        });
+      }
+    }
+
+    // ============================
+    // 🔒 CONTROL DE ACTIVACIÓN
     if (typeof isActive !== 'undefined') {
 
       console.log("Intentando cambiar isActive a:", isActive);
       console.log("Rol del usuario que edita:", req.user.role);
 
-      if (req.user.role === 'administrador' || req.user.role === 'director/a'|| req.user.role === '') {
-
+      if (
+        req.user.role === 'administrador' ||
+        req.user.role === 'director/a'
+      ) {
         console.log("✅ Permiso concedido para cambiar isActive");
         user.isActive = isActive;
-
       } else {
-
         console.log("⛔ BLOQUEADO: usuario sin permisos para cambiar isActive");
-
         return res.status(403).json({
           message: 'No tienes permisos para cambiar el estado del usuario'
         });
-
       }
     }
 
-    await user.save();
+    // ============================
+    await user.save(); // 🔥 CLAVE (activa bcrypt)
 
     console.log("✅ Usuario actualizado correctamente");
 
@@ -296,8 +312,6 @@ const createDocente = async (req, res) => {
 const updateMyProfile = async (req, res) => {
   try {
     console.log('==== UPDATE MY PROFILE REQUEST ====');
-    console.log('Usuario que hace la petición:', req.user);
-    console.log('Datos recibidos:', req.body);
 
     const userId = req.user.userId;
 
@@ -307,7 +321,8 @@ const updateMyProfile = async (req, res) => {
       email,
       phoneNumber,
       birthDate,
-      idNumber // 🔹 Agregado para actualizar cédula
+      idNumber,
+      password // 🔥 AGREGADO
     } = req.body;
 
     const user = await User.findById(userId);
@@ -316,27 +331,24 @@ const updateMyProfile = async (req, res) => {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    // actualizar solo datos permitidos
+    // 🔹 Datos normales
     user.firstName = firstName ?? user.firstName;
     user.lastName = lastName ?? user.lastName;
     user.email = email ?? user.email;
     user.phoneNumber = phoneNumber ?? user.phoneNumber;
     user.birthDate = birthDate ?? user.birthDate;
-    user.idNumber = idNumber ?? user.idNumber; // 🔹 Actualizar cédula
+    user.idNumber = idNumber ?? user.idNumber;
 
-    await user.save();
+    // 🔐 Cambio de contraseña
+    if (password && password.trim() !== '') {
+      console.log('🔐 Usuario actualizando su contraseña');
+      user.password = password; // 👉 se encripta en pre('save')
+    }
+
+    await user.save(); // 🔥 CLAVE
 
     const userObject = user.toObject();
     delete userObject.password;
-
-    console.log('✅ Perfil actualizado correctamente. Nuevos datos:', {
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      birthDate: user.birthDate,
-      idNumber: user.idNumber // 🔹 Mostrar cédula actualizada
-    });
 
     res.json({
       message: 'Perfil actualizado correctamente',
