@@ -134,8 +134,17 @@ const disciplineReportSchema = new Schema({
 
   editedAt: {
     type: Date
-  }
+  },
 
+sincronizado: { 
+    type: Boolean, 
+    default: false, 
+    index: true 
+  },
+  lastModified: { 
+    type: Date, 
+    default: Date.now 
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model("DisciplineReport", disciplineReportSchema);

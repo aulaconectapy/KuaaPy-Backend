@@ -23,8 +23,17 @@ const notificationSchema = new mongoose.Schema({
   read: {
     type: Boolean,
     default: false
-  }
+  },
 
+sincronizado: { 
+    type: Boolean, 
+    default: false, 
+    index: true 
+  },
+  lastModified: { 
+    type: Date, 
+    default: Date.now 
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model("Notification", notificationSchema);

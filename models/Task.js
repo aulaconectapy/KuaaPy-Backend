@@ -58,6 +58,15 @@ const taskSchema = new Schema({
   grade: { type: String, required: true },
   teacher: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   createdAt: { type: Date, default: Date.now },
-});
+sincronizado: { 
+    type: Boolean, 
+    default: false, 
+    index: true 
+  },
+  lastModified: { 
+    type: Date, 
+    default: Date.now 
+  }
+}, { timestamps: true });
 
 module.exports = mongoose.model('Task', taskSchema);

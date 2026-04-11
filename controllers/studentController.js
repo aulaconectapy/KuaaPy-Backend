@@ -409,3 +409,39 @@ exports.toggleStudentStatus = async (req, res) => {
     res.status(500).json({ message: 'Error al cambiar estado' });
   }
 };
+// ================================
+// ================================
+// OBTENER ESTUDIANTES POR GRADOS (ARRAY) E INSTITUCIÓN
+// ================================
+exports.getStudentsByGradesAndInstitution = async (req, res) => {
+  try {
+    let { grades, institution } = req.query;
+
+    // 🔥 SI NO VIENE GRADES → BUSCAR DEL USUARIO LOGUEADO
+    if (!grades) {
+      const user = await User.findById(req.user.userId);
+
+      if (!user || !user.grades || user.grades.length === 0) {
+        return res.status(400).json({ message: 'No hay grados asignados al usuario' });
+      }
+
+      grades = user.grades;
+    }
+
+    // 🔥 NORMALIZAR A ARRAY
+    const gradesArray = Array.isArray(grades)
+      ? grades
+      : String(grades).split(',');
+
+    const students = await Student.find({
+      institution,
+      grade: { $in: gradesArray }
+    }).select('firstName lastName grade user');
+
+    res.json(students);
+
+  } catch (error) {
+    console.error('Error filtrando estudiantes:', error);
+    res.status(500).json({ message: 'Error al filtrar estudiantes' });
+  }
+};

@@ -78,6 +78,18 @@ const studentSchema = new Schema({
     type: Date,
     default: Date.now,
   },
-});
+  
+// CAMPOS PARA SINCRONIZACIÓN
+  sincronizado: { 
+    type: Boolean, 
+    default: false, 
+    index: true // Índice para que el script de subida sea ultra rápido
+  },
+  lastModified: { 
+    type: Date, 
+    default: Date.now 
+  }
+}, { timestamps: true }); // Asegúrate de tener timestamps en todos
+
 
 module.exports = mongoose.model('Student', studentSchema);

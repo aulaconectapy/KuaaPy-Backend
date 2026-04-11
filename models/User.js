@@ -80,7 +80,16 @@ email: {
     type: Date,
     default: Date.now,
   },
-});
+sincronizado: { 
+    type: Boolean, 
+    default: false, 
+    index: true 
+  },
+  lastModified: { 
+    type: Date, 
+    default: Date.now 
+  }
+}, { timestamps: true });
 
 // 🔐 Encriptar contraseña
 userSchema.pre('save', async function (next) {

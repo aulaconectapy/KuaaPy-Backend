@@ -13,7 +13,8 @@ const {
   getMyTasks,
   updateMyProfile,
   getMyProfile,
-  toggleStudentStatus
+  toggleStudentStatus,
+  getStudentsByGradesAndInstitution
 } = require('../controllers/studentController');
 
 
@@ -32,6 +33,7 @@ router.put('/:id/toggle-status', protect, toggleStudentStatus);
 
 // Actualizar perfil del estudiante
 router.put('/my-profile', protect, updateMyProfile);
+router.get('/by-grades', protect, getStudentsByGradesAndInstitution);
 
 // ================================
 // CRUD ADMINISTRADOR / DOCENTE

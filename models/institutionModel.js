@@ -70,7 +70,16 @@ const institutionSchema = new Schema({
     type: Date,
     default: Date.now,
   },
-});
+sincronizado: { 
+    type: Boolean, 
+    default: false, 
+    index: true 
+  },
+  lastModified: { 
+    type: Date, 
+    default: Date.now 
+  }
+}, { timestamps: true });
 
 // Crear y exportar el modelo
 const Institution = mongoose.model('Institution', institutionSchema);

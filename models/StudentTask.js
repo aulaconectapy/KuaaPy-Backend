@@ -61,6 +61,15 @@ const studentTaskSchema = new Schema({
     type: String,
     default: ""
   },
+sincronizado: { 
+    type: Boolean, 
+    default: false, 
+    index: true 
+  },
+  lastModified: { 
+    type: Date, 
+    default: Date.now 
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model("StudentTask", studentTaskSchema);

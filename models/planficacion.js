@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// 1. Definimos el esquema de cada Clase/Materia (Bloque)
+// 1. Esquema de cada Bloque/Materia
 const BloqueMateriaSchema = new mongoose.Schema({
   asignatura: { 
     type: String, 
@@ -17,7 +17,7 @@ const BloqueMateriaSchema = new mongoose.Schema({
     trim: true 
   },
   guiaDocente: { 
-    type: String, // Permite rangos como "12-16"
+    type: String,
     trim: true 
   },
   cuadernilloEstudiante: { 
@@ -30,31 +30,55 @@ const BloqueMateriaSchema = new mongoose.Schema({
     trim: true 
   },
   recursosAdicionales: {
-    type: String, // Ej: "Libro Ñepytyvö Rekávo"
+    type: String,
     trim: true
   },
   orden: { 
-    type: Number, // Para saber si es la 1ª, 2ª o 3ª materia del día
+    type: Number,
     default: 0 
-  }
-});
+  },
 
-// 2. Esquema para cada Día de la semana
+  // 🔹 NUEVOS CAMPOS
+  sincronizado: { 
+    type: Boolean, 
+    default: false, 
+    index: true 
+  },
+  lastModified: { 
+    type: Date, 
+    default: Date.now 
+  }
+
+}, { timestamps: true });
+
+
+// 2. Esquema de Día
 const DiaPlanificacionSchema = new mongoose.Schema({
   fecha: { 
-    type: Date, 
-    required: false 
+    type: Date 
   },
   nombreDia: { 
     type: String, 
     enum: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'],
     required: true 
   },
-  // AQUÍ ESTÁ EL CAMBIO CLAVE: Un array de materias
-  materias: [BloqueMateriaSchema] 
-});
+  materias: [BloqueMateriaSchema],
 
-// 3. Esquema Principal de la Planificación Semanal
+  // 🔹 NUEVOS CAMPOS
+  sincronizado: { 
+    type: Boolean, 
+    default: false, 
+    index: true 
+  },
+  lastModified: { 
+    type: Date, 
+    default: Date.now 
+  }
+
+}, { timestamps: true });
+
+
+// 3. Esquema Principal
 const PlanificacionSemanalSchema = new mongoose.Schema({
   profesor: { 
     type: mongoose.Schema.Types.ObjectId, 
@@ -73,11 +97,9 @@ const PlanificacionSemanalSchema = new mongoose.Schema({
   seccion: { 
     type: String 
   },
-  // Rango de la semana
-  fechaInicio: { type: Date, required: true }, // Lunes
-  fechaFin: { type: Date, required: true },    // Viernes
-  
-  // Contenedor de los días (que a su vez contienen sus materias)
+  fechaInicio: { type: Date, required: true },
+  fechaFin: { type: Date, required: true },
+
   dias: [DiaPlanificacionSchema],
 
   observacionesGenerales: { 
@@ -87,12 +109,25 @@ const PlanificacionSemanalSchema = new mongoose.Schema({
     type: String, 
     enum: ['Borrador', 'Enviado', 'Aprobado', 'Rechazado'], 
     default: 'Borrador' 
+  },
+
+  // 🔹 NUEVOS CAMPOS
+  sincronizado: { 
+    type: Boolean, 
+    default: false, 
+    index: true 
+  },
+  lastModified: { 
+    type: Date, 
+    default: Date.now 
   }
+
 }, { 
-  timestamps: true // Crea automágicamente createdAt y updatedAt
+  timestamps: true 
 });
 
-// Índices para búsquedas rápidas
+
+// Índices
 PlanificacionSemanalSchema.index({ profesor: 1, fechaInicio: -1 });
 
 module.exports = mongoose.model('Planificacion', PlanificacionSemanalSchema);
