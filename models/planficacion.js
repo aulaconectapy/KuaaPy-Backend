@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const BloqueMateriaSchema = new mongoose.Schema({
   asignatura: { 
     type: String, 
-    required: true,
+    required: false,
     trim: true 
   },
   unidadTematica: { 
@@ -13,7 +13,7 @@ const BloqueMateriaSchema = new mongoose.Schema({
   },
   tema: { 
     type: String, 
-    required: true,
+    required: false,
     trim: true 
   },
   guiaDocente: { 
