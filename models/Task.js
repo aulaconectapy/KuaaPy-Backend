@@ -6,6 +6,10 @@ const taskSchema = new Schema({
   capacities: [{ type: String, required: true }],
   topic: { type: String, required: true },
 
+  // NUEVOS CAMPOS
+  consigna: { type: String, required: false }, // instrucción de la actividad
+  observacion: { type: String, default: '' }, // comentario opcional
+
   // FUNCIÓN DE LA EVALUACIÓN
   taskType: {
     type: String,
@@ -20,13 +24,13 @@ const taskSchema = new Schema({
     required: true,
   },
 
-  // INDICADORES (Base para Lista de Cotejo y RSA)
+  // INDICADORES
   indicators: [{
     description: { type: String },
-    points: { type: Number, min: 0, default: 1 } // En RSA suele ser 1 pto si es Logrado
+    points: { type: Number, min: 0, default: 1 }
   }],
 
-  // RSA: Definición de los 3 momentos programados
+  // RSA
   rsaMoments: [
     {
       moment: { type: Number, enum: [1, 2, 3] },
@@ -57,8 +61,8 @@ const taskSchema = new Schema({
   institution: { type: Schema.Types.ObjectId, ref: 'Institution', required: true },
   grade: { type: String, required: true },
   teacher: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  createdAt: { type: Date, default: Date.now },
-sincronizado: { 
+
+  sincronizado: { 
     type: Boolean, 
     default: false, 
     index: true 
@@ -67,6 +71,7 @@ sincronizado: {
     type: Date, 
     default: Date.now 
   }
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('Task', taskSchema);

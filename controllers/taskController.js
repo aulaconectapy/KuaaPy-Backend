@@ -29,34 +29,37 @@ function calculateRSA(m1, m2, m3) {
 // ===============================
 exports.createTask = async (req, res) => {
   try {
-    const {
-      subject,
-      topic,
-      grade,
-      dueDate,
-      indicators,
-      taskType,
-      instrumentType,
-      rubricCriteria,
-      rsaMoments 
-    } = req.body;
+const {
+  subject,
+  topic,
+  grade,
+  dueDate,
+  indicators,
+  taskType,
+  instrumentType,
+  rubricCriteria,
+  rsaMoments,
+  consigna,
+  observacion
+} = req.body;
 
     const teacher = await User.findById(req.user.userId);
-
-    const task = new Task({
-      subject,
-      topic,
-      grade,
-      taskType,
-      instrumentType,
-      dueDate,
-      status: "publicada",
-      institution: teacher.institution,
-      teacher: teacher._id,
-      indicators,
-      rubricCriteria,
-      rsaMoments
-    });
+const task = new Task({
+  subject,
+  topic,
+  grade,
+  taskType,
+  instrumentType,
+  dueDate,
+  status: "publicada",
+  institution: teacher.institution,
+  teacher: teacher._id,
+  indicators,
+  rubricCriteria,
+  rsaMoments,
+  consigna,
+  observacion
+});
 
     await task.save();
 
@@ -195,8 +198,7 @@ exports.getMyTasks = async (req, res) => {
     const studentTasks = await StudentTask.find({ student: student._id })
       .populate({
         path: "task",
-        select: "subject topic dueDate grade status taskType instrumentType",
-        match: { status: "publicada" },
+select: "subject topic dueDate grade status taskType instrumentType consigna observacion",        match: { status: "publicada" },
       })
       .sort({ createdAt: -1 });
 
