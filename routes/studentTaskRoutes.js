@@ -7,7 +7,10 @@ const {
   getStudentTasksByGrade,
   getMyTasks,
   getStudentsSummaryByGrade, 
-  getStudentTasksByStudentId
+  getStudentTasksByStudentId,
+  getFullReportByGrade,
+    getGeneralReportByGrade
+
 } = require("../controllers/studentTaskController");
 
 // Ordenamos de lo más específico a lo más general
@@ -15,6 +18,8 @@ router.get("/my-tasks", protect, getMyTasks);
 
 router.get("/summary/:grade", protect, getStudentsSummaryByGrade);
 router.get("/grade/:grade", protect, getStudentTasksByGrade);
+router.get("/report/general/:grade", protect, getGeneralReportByGrade);
+router.get("/report/full/:grade", protect, getFullReportByGrade);
 router.get("/:id", protect, getStudentTaskById);
 router.put("/:studentTaskId", protect, updateStudentTask);
 // NUEVA RUTA: Obtener historial de tareas de un estudiante específico (para el docente)

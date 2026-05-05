@@ -1,4 +1,5 @@
 const StudentTask = require("../models/StudentTask");
+const Task = require("../models/Task");
 const Student = require("../models/Student");
 const mongoose = require('mongoose'); // Importante para convertir el ID
 
@@ -84,9 +85,6 @@ exports.getMyTasks = async (req, res) => {
 };
 
 
-// ===============================
-// Actualizar / Calificar entrega
-// ===============================
 // ===============================
 // Actualizar / Calificar entrega
 // ===============================
@@ -286,5 +284,199 @@ exports.getStudentsSummaryByGrade = async (req, res) => {
   } catch (error) {
     console.error("Error en getStudentsSummaryByGrade:", error);
     res.status(500).json({ message: "Error al obtener resumen" });
+  }
+};
+
+exports.getFullReportByGrade = async (req, res) => {
+  try {
+    const { grade } = req.params;
+
+    const report = await StudentTask.aggregate([
+      {
+        $lookup: {
+          from: "students",
+          localField: "student",
+          foreignField: "_id",
+          as: "student"
+        }
+      },
+      { $unwind: "$student" },
+
+      {
+        $lookup: {
+          from: "tasks",
+          localField: "task",
+          foreignField: "_id",
+          as: "task"
+        }
+      },
+      { $unwind: "$task" },
+
+      // Filtrar por grado
+      {
+        $match: {
+          "task.grade": grade
+        }
+      },
+
+      // Agrupar por estudiante + materia
+      {
+        $group: {
+          _id: {
+            studentId: "$student._id",
+            subject: "$task.subject"
+          },
+          studentName: {
+            $first: {
+              $concat: ["$student.firstName", " ", "$student.lastName"]
+            }
+          },
+          tasks: {
+            $push: {
+              topic: "$task.topic",
+              score: "$score"
+            }
+          },
+          totalSubject: { $sum: "$score" }
+        }
+      },
+
+      // Agrupar por estudiante
+      {
+        $group: {
+          _id: "$_id.studentId",
+          studentName: { $first: "$studentName" },
+          subjects: {
+            $push: {
+              subject: "$_id.subject",
+              tasks: "$tasks",
+              total: "$totalSubject"
+            }
+          },
+          totalGlobal: { $sum: "$totalSubject" }
+        }
+      },
+
+      { $sort: { studentName: 1 } }
+    ]);
+
+    res.json(report);
+
+  } catch (error) {
+    console.error("Error en getFullReportByGrade:", error);
+    res.status(500).json({ message: "Error al generar reporte" });
+  }
+};
+
+exports.getGeneralReportByGrade = async (req, res) => {
+  try {
+    const { grade } = req.params;
+    const { institutionId } = req.query;
+
+    const studentMatch = {};
+
+    if (grade !== "all") {
+      studentMatch.grade = grade;
+    }
+
+    if (institutionId) {
+      studentMatch.institution = new mongoose.Types.ObjectId(institutionId);
+    }
+
+    // 1. Buscar estudiantes del grado
+    const students = await Student.find(studentMatch)
+      .select("firstName lastName grade")
+      .sort({ lastName: 1, firstName: 1 });
+
+    // 2. Buscar tareas del grado
+    const taskMatch = {};
+
+    if (grade !== "all") {
+      taskMatch.grade = grade;
+    }
+
+    const tasks = await Task.find(taskMatch)
+      .select("subject topic instrumentType indicators rubricCriteria")
+      .sort({ subject: 1, createdAt: 1 });
+
+    // 3. Preparar columnas de la planilla
+const columns = tasks.map(task => {
+  let maxPoints = 0;
+
+  if (task.instrumentType === "lista_cotejo" || task.instrumentType === "rsa") {
+    maxPoints = task.indicators?.reduce((sum, i) => {
+      return sum + (Number(i.points) || 0);
+    }, 0) || 0;
+  }
+
+  if (task.instrumentType === "rubrica") {
+    maxPoints = task.rubricCriteria?.reduce((sum, criterion) => {
+      const maxCriterionPoints = criterion.levels?.reduce((max, level) => {
+        return Math.max(max, Number(level.points) || 0);
+      }, 0) || 0;
+
+      return sum + maxCriterionPoints;
+    }, 0) || 0;
+  }
+
+  return {
+    taskId: task._id,
+    subject: task.subject,
+    topic: task.topic,
+    instrumentType: task.instrumentType,
+    maxPoints
+  };
+});
+
+    // 4. Buscar calificaciones
+    const studentIds = students.map(s => s._id);
+    const taskIds = tasks.map(t => t._id);
+
+    const studentTasks = await StudentTask.find({
+      student: { $in: studentIds },
+      task: { $in: taskIds }
+    }).select("student task score status");
+
+    // 5. Armar filas
+    const rows = students.map(student => {
+      const scores = {};
+      let total = 0;
+
+      tasks.forEach(task => {
+        const found = studentTasks.find(st =>
+          st.student.toString() === student._id.toString() &&
+          st.task.toString() === task._id.toString()
+        );
+
+        const score = found ? found.score : 0;
+
+        scores[task._id] = {
+          score,
+          status: found ? found.status : "sin_registro"
+        };
+
+        total += score;
+      });
+
+      return {
+        studentId: student._id,
+        studentName: `${student.firstName} ${student.lastName}`,
+        grade: student.grade,
+        scores,
+        total
+      };
+    });
+
+    res.json({
+      columns,
+      rows
+    });
+
+  } catch (error) {
+    console.error("Error en getGeneralReportByGrade:", error);
+    res.status(500).json({
+      message: "Error al generar reporte general",
+      error: error.message
+    });
   }
 };
