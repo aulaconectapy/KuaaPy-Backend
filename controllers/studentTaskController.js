@@ -254,29 +254,63 @@ exports.getStudentsSummaryByGrade = async (req, res) => {
       
       // Aplicamos el match después de los lookups para tener acceso a student e institution
       { $match: matchQuery },
+{
+  $group: {
+    _id: "$student._id",
 
-      {
-        $group: {
-          _id: "$student._id",
-          firstName: { $first: "$student.firstName" },
-          lastName: { $first: "$student.lastName" },
-          totalTasks: { $sum: 1 },
-          pendientes: { $sum: { $cond: [{ $eq: ["$status", "pendiente"] }, 1, 0] } },
-          corregidas: { $sum: { $cond: [{ $eq: ["$status", "corregido"] }, 1, 0] } },
-          
-          listaCotejoLogrado: {
-            $sum: { $cond: [{ $eq: ["$task.instrumentType", "lista_cotejo"] }, "$score", 0] }
-          },
-          rubricaLogrado: {
-            $sum: { $cond: [{ $eq: ["$task.instrumentType", "rubrica"] }, "$score", 0] }
-          },
-          rsaLogrado: {
-            $sum: { $cond: [{ $eq: ["$task.instrumentType", "rsa"] }, "$score", 0] }
-          },
+    firstName: { $first: "$student.firstName" },
+    lastName: { $first: "$student.lastName" },
 
-          puntosGlobalLogrado: { $sum: "$score" }
-        }
-      },
+    // 🔥 AGREGAR ESTO
+    grade: { $first: "$task.grade" },
+
+    totalTasks: { $sum: 1 },
+
+    pendientes: {
+      $sum: {
+        $cond: [{ $eq: ["$status", "pendiente"] }, 1, 0]
+      }
+    },
+
+    corregidas: {
+      $sum: {
+        $cond: [{ $eq: ["$status", "corregido"] }, 1, 0]
+      }
+    },
+
+    listaCotejoLogrado: {
+      $sum: {
+        $cond: [
+          { $eq: ["$task.instrumentType", "lista_cotejo"] },
+          "$score",
+          0
+        ]
+      }
+    },
+
+    rubricaLogrado: {
+      $sum: {
+        $cond: [
+          { $eq: ["$task.instrumentType", "rubrica"] },
+          "$score",
+          0
+        ]
+      }
+    },
+
+    rsaLogrado: {
+      $sum: {
+        $cond: [
+          { $eq: ["$task.instrumentType", "rsa"] },
+          "$score",
+          0
+        ]
+      }
+    },
+
+    puntosGlobalLogrado: { $sum: "$score" }
+  }
+},
       { $sort: { lastName: 1 } }
     ]);
 
