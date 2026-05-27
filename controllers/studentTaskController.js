@@ -422,8 +422,11 @@ exports.getGeneralReportByGrade = async (req, res) => {
       .select("firstName lastName grade")
       .sort({ lastName: 1, firstName: 1 });
 
-    // 2. Buscar tareas del grado
-    const taskMatch = {};
+    // 2. Buscar tareas del grado antes
+// 2. Buscar tareas del grado SOLO SUMATIVAS
+const taskMatch = {
+  taskType: "sumativo"
+};
 
     if (grade !== "all") {
       taskMatch.grade = grade;
