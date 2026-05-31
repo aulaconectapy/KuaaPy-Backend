@@ -2,7 +2,7 @@ const StudentTask = require("../models/StudentTask");
 const Task = require("../models/Task");
 const Student = require("../models/Student");
 const mongoose = require('mongoose'); // Importante para convertir el ID
-
+const User = require("../models/User");
 // Colócalo al principio de tu archivo studentTaskController.js
 const calculateRSA = (m1, m2, m3) => {
   // Convertimos 1 a "L" y 0 a "ANL" para procesar
@@ -404,8 +404,23 @@ exports.getFullReportByGrade = async (req, res) => {
 
 exports.getGeneralReportByGrade = async (req, res) => {
   try {
+    const allowedRoles = ["docente", "director", "directora", "secretario", "secretaria"];
+
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        message: "No tiene permiso para ver este reporte general.",
+      });
+    }
+
     const { grade } = req.params;
-    const { institutionId } = req.query;
+
+    const userInstitution =
+      req.user.institution?._id ||
+      req.user.institution;
+
+    const institutionId =
+      req.query.institutionId ||
+      userInstitution;
 
     const studentMatch = {};
 
@@ -417,64 +432,62 @@ exports.getGeneralReportByGrade = async (req, res) => {
       studentMatch.institution = new mongoose.Types.ObjectId(institutionId);
     }
 
-    // 1. Buscar estudiantes del grado
-    const students = await Student.find(studentMatch)
-      .select("firstName lastName grade")
-      .sort({ lastName: 1, firstName: 1 });
-
-    // 2. Buscar tareas del grado antes
-// 2. Buscar tareas del grado SOLO SUMATIVAS
-const taskMatch = {
-  taskType: "sumativo"
-};
+    const taskMatch = {
+      taskType: "sumativo",
+    };
 
     if (grade !== "all") {
       taskMatch.grade = grade;
     }
 
+    if (institutionId) {
+      taskMatch.institution = new mongoose.Types.ObjectId(institutionId);
+    }
+
+    const students = await Student.find(studentMatch)
+      .select("firstName lastName grade")
+      .sort({ lastName: 1, firstName: 1 });
+
     const tasks = await Task.find(taskMatch)
       .select("subject topic instrumentType indicators rubricCriteria")
       .sort({ subject: 1, createdAt: 1 });
 
-    // 3. Preparar columnas de la planilla
-const columns = tasks.map(task => {
-  let maxPoints = 0;
+    const columns = tasks.map(task => {
+      let maxPoints = 0;
 
-  if (task.instrumentType === "lista_cotejo" || task.instrumentType === "rsa") {
-    maxPoints = task.indicators?.reduce((sum, i) => {
-      return sum + (Number(i.points) || 0);
-    }, 0) || 0;
-  }
+      if (task.instrumentType === "lista_cotejo" || task.instrumentType === "rsa") {
+        maxPoints = task.indicators?.reduce((sum, i) => {
+          return sum + (Number(i.points) || 0);
+        }, 0) || 0;
+      }
 
-  if (task.instrumentType === "rubrica") {
-    maxPoints = task.rubricCriteria?.reduce((sum, criterion) => {
-      const maxCriterionPoints = criterion.levels?.reduce((max, level) => {
-        return Math.max(max, Number(level.points) || 0);
-      }, 0) || 0;
+      if (task.instrumentType === "rubrica") {
+        maxPoints = task.rubricCriteria?.reduce((sum, criterion) => {
+          const maxCriterionPoints = criterion.levels?.reduce((max, level) => {
+            return Math.max(max, Number(level.points) || 0);
+          }, 0) || 0;
 
-      return sum + maxCriterionPoints;
-    }, 0) || 0;
-  }
+          return sum + maxCriterionPoints;
+        }, 0) || 0;
+      }
 
-  return {
-    taskId: task._id,
-    subject: task.subject,
-    topic: task.topic,
-    instrumentType: task.instrumentType,
-    maxPoints
-  };
-});
+      return {
+        taskId: task._id,
+        subject: task.subject,
+        topic: task.topic,
+        instrumentType: task.instrumentType,
+        maxPoints,
+      };
+    });
 
-    // 4. Buscar calificaciones
     const studentIds = students.map(s => s._id);
     const taskIds = tasks.map(t => t._id);
 
     const studentTasks = await StudentTask.find({
       student: { $in: studentIds },
-      task: { $in: taskIds }
+      task: { $in: taskIds },
     }).select("student task score status");
 
-    // 5. Armar filas
     const rows = students.map(student => {
       const scores = {};
       let total = 0;
@@ -485,11 +498,11 @@ const columns = tasks.map(task => {
           st.task.toString() === task._id.toString()
         );
 
-        const score = found ? found.score : 0;
+        const score = found ? Number(found.score) || 0 : 0;
 
         scores[task._id] = {
           score,
-          status: found ? found.status : "sin_registro"
+          status: found ? found.status : "sin_registro",
         };
 
         total += score;
@@ -500,20 +513,135 @@ const columns = tasks.map(task => {
         studentName: `${student.firstName} ${student.lastName}`,
         grade: student.grade,
         scores,
-        total
+        total,
       };
     });
 
-    res.json({
+    return res.json({
       columns,
-      rows
+      rows,
     });
 
   } catch (error) {
     console.error("Error en getGeneralReportByGrade:", error);
-    res.status(500).json({
+
+    return res.status(500).json({
       message: "Error al generar reporte general",
-      error: error.message
+      error: error.message,
+    });
+  }
+};
+
+exports.getStudentProcessReport = async (req, res) => {
+  try {
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({
+        message: "Token inválido o usuario no identificado",
+      });
+    }
+
+    const student = await Student.findOne({
+      user: req.user.userId,
+    }).select("_id firstName lastName grade institution");
+
+    if (!student) {
+      return res.status(404).json({
+        message: "Estudiante no encontrado",
+      });
+    }
+
+    const institutionId =
+      student.institution ||
+      req.user.institution ||
+      req.query.institutionId;
+
+    if (!institutionId) {
+      return res.status(404).json({
+        message: "No se encontró la institución del estudiante.",
+      });
+    }
+
+    const tasks = await Task.find({
+      grade: student.grade,
+      institution: new mongoose.Types.ObjectId(institutionId),
+      taskType: "sumativo",
+    })
+      .select("subject topic instrumentType indicators rubricCriteria dueDate taskType")
+      .sort({ subject: 1, createdAt: 1 });
+
+    const taskIds = tasks.map(task => task._id);
+
+    const studentTasks = await StudentTask.find({
+      student: student._id,
+      task: { $in: taskIds },
+    }).select("task score status comments indicatorScores rubricScores rsaFinalResult");
+
+    const subjects = {};
+
+    tasks.forEach(task => {
+      let maxPoints = 0;
+
+      if (task.instrumentType === "lista_cotejo" || task.instrumentType === "rsa") {
+        maxPoints = task.indicators?.reduce((sum, indicator) => {
+          return sum + (Number(indicator.points) || 0);
+        }, 0) || 0;
+      }
+
+      if (task.instrumentType === "rubrica") {
+        maxPoints = task.rubricCriteria?.reduce((sum, criterion) => {
+          const maxCriterionPoints = criterion.levels?.reduce((max, level) => {
+            return Math.max(max, Number(level.points) || 0);
+          }, 0) || 0;
+
+          return sum + maxCriterionPoints;
+        }, 0) || 0;
+      }
+
+      const found = studentTasks.find(st =>
+        st.task.toString() === task._id.toString()
+      );
+
+      if (!subjects[task.subject]) {
+        subjects[task.subject] = {
+          subject: task.subject,
+          totalScore: 0,
+          totalMaxPoints: 0,
+          tasks: [],
+        };
+      }
+
+      const score = found ? Number(found.score) || 0 : 0;
+
+      subjects[task.subject].totalScore += score;
+      subjects[task.subject].totalMaxPoints += maxPoints;
+
+      subjects[task.subject].tasks.push({
+        taskId: task._id,
+        topic: task.topic,
+        instrumentType: task.instrumentType,
+        dueDate: task.dueDate,
+        maxPoints,
+        score,
+        status: found ? found.status : "sin_registro",
+        comments: found ? found.comments : "",
+      });
+    });
+
+    return res.json({
+      student: {
+        studentId: student._id,
+        studentName: `${student.firstName} ${student.lastName}`,
+        grade: student.grade,
+      },
+      subjects: Object.values(subjects),
+    });
+
+  } catch (error) {
+    console.error("Error en getStudentProcessReport:", error);
+
+    return res.status(500).json({
+      message: "Error al generar reporte del estudiante",
+      error: error.message,
     });
   }
 };

@@ -1,28 +1,34 @@
 const express = require("express");
 const router = express.Router();
+
 const protect = require("../middlewares/protect");
+
 const {
   getStudentTaskById,
   updateStudentTask,
   getStudentTasksByGrade,
   getMyTasks,
-  getStudentsSummaryByGrade, 
+  getStudentsSummaryByGrade,
   getStudentTasksByStudentId,
   getFullReportByGrade,
-    getGeneralReportByGrade
-
+  getGeneralReportByGrade,
+  getStudentProcessReport,
 } = require("../controllers/studentTaskController");
 
-// Ordenamos de lo más específico a lo más general
+// RUTAS ESPECÍFICAS PRIMERO
 router.get("/my-tasks", protect, getMyTasks);
+
+router.get("/report/student-process",protect, getStudentProcessReport);
+router.get("/report/general/:grade", protect, getGeneralReportByGrade);
+router.get("/report/full/:grade", protect, getFullReportByGrade);
 
 router.get("/summary/:grade", protect, getStudentsSummaryByGrade);
 router.get("/grade/:grade", protect, getStudentTasksByGrade);
-router.get("/report/general/:grade", protect, getGeneralReportByGrade);
-router.get("/report/full/:grade", protect, getFullReportByGrade);
+
+// RUTAS DINÁMICAS AL FINAL
+router.get("/:studentId/tasks", protect, getStudentTasksByStudentId);
 router.get("/:id", protect, getStudentTaskById);
+
 router.put("/:studentTaskId", protect, updateStudentTask);
-// NUEVA RUTA: Obtener historial de tareas de un estudiante específico (para el docente)
-router.get('/:studentId/tasks', protect, getStudentTasksByStudentId);
 
 module.exports = router;
