@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const DisciplineReport = require("../models/DisciplineReport");
 const Student = require("../models/Student");
 const Notification = require("../models/Notification");
+const User = require("../models/User");
 
 exports.createReport = async (req, res) => {
   try {
@@ -157,25 +158,24 @@ exports.deleteReport = async (req, res) => {
 // ===============================
 exports.getReportsByGrade = async (req, res) => {
   try {
-    console.log("===== REPORTES POR GRADO =====");
-    console.log("Grado:", req.params.grade);
+
+    const teacher = await User.findById(req.user.userId);
 
     const reports = await DisciplineReport.find({
-      grade: req.params.grade,
+      grade: { $in: teacher.grades },
       institution: req.user.institution
     })
       .populate("student", "firstName lastName")
       .populate("teacher", "firstName lastName")
       .sort({ createdAt: -1 });
 
-    console.log("Cantidad de reportes:", reports.length);
     res.json(reports);
+
   } catch (error) {
     console.log("❌ ERROR OBTENIENDO REPORTES:", error);
     res.status(500).json({ message: error.message });
   }
 };
-
 // ===============================
 // VER REPORTES DE UN ALUMNO
 // ===============================
