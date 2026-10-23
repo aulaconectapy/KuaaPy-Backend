@@ -1,6 +1,20 @@
 const mongoose = require('mongoose');
 
-// 1. Esquema de cada Bloque/Materia
+// 1. Esquema de Indicadores (Para evaluar cada materia)
+const IndicadorSchema = new mongoose.Schema({
+  descripcion: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  puntos: {
+    type: Number,
+    default: 1,
+    min: 0
+  }
+});
+
+// 2. Esquema de cada Bloque/Materia
 const BloqueMateriaSchema = new mongoose.Schema({
   asignatura: { 
     type: String, 
@@ -16,6 +30,16 @@ const BloqueMateriaSchema = new mongoose.Schema({
     required: false,
     trim: true 
   },
+  // 🔹 NUEVO CAMPO: Capacidad separada del tema
+  capacidad: {
+    type: String,
+    trim: true
+  },
+  // 🔹 NUEVO CAMPO: Momentos didácticos (Opcional por materia)
+  momentosDidacticos: {
+    type: String,
+    trim: true
+  },
   guiaDocente: { 
     type: String,
     trim: true 
@@ -29,6 +53,9 @@ const BloqueMateriaSchema = new mongoose.Schema({
     default: 'Lista de cotejo',
     trim: true 
   },
+  // 🔹 NUEVO CAMPO: Indicadores de evaluación
+  indicadores: [IndicadorSchema],
+
   recursosAdicionales: {
     type: String,
     trim: true
@@ -38,7 +65,6 @@ const BloqueMateriaSchema = new mongoose.Schema({
     default: 0 
   },
 
-  // 🔹 NUEVOS CAMPOS
   sincronizado: { 
     type: Boolean, 
     default: false, 
@@ -52,7 +78,7 @@ const BloqueMateriaSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 
-// 2. Esquema de Día
+// 3. Esquema de Día
 const DiaPlanificacionSchema = new mongoose.Schema({
   fecha: { 
     type: Date 
@@ -64,7 +90,6 @@ const DiaPlanificacionSchema = new mongoose.Schema({
   },
   materias: [BloqueMateriaSchema],
 
-  // 🔹 NUEVOS CAMPOS
   sincronizado: { 
     type: Boolean, 
     default: false, 
@@ -78,7 +103,7 @@ const DiaPlanificacionSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 
-// 3. Esquema Principal
+// 4. Esquema Principal
 const PlanificacionSemanalSchema = new mongoose.Schema({
   profesor: { 
     type: mongoose.Schema.Types.ObjectId, 
@@ -111,7 +136,6 @@ const PlanificacionSemanalSchema = new mongoose.Schema({
     default: 'Borrador' 
   },
 
-  // 🔹 NUEVOS CAMPOS
   sincronizado: { 
     type: Boolean, 
     default: false, 

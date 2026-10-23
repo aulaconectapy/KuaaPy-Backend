@@ -5,30 +5,27 @@ exports.createPlanificacion = async (req, res) => {
   try {
     console.log("--- PROCESANDO GUARDADO ---");
     
-    // 1. Extraer el ID correctamente según tu token decodificado (userId)
     const profesorId = req.user.userId || req.user.id || req.user._id;
     const institucionId = req.user.institution;
 
     console.log("ID del Profesor extraído:", profesorId);
 
-    // 2. Generar las fechas para cada día basándonos en la fecha de inicio
-    // Esto soluciona el error "Campo: dias.X.fecha | Mensaje: Path fecha is required"
+    // Generar las fechas para cada día basándonos en la fecha de inicio
     const fechaBase = new Date(req.body.fechaInicio);
-    const diasProcesados = req.body.dias.map((dia, index) => {
+    const diasProcesados = (req.body.dias || []).map((dia, index) => {
       const fechaDia = new Date(fechaBase);
-      fechaDia.setDate(fechaDia.getDate() + index); // Suma 0 para lunes, 1 para martes, etc.
+      fechaDia.setDate(fechaDia.getDate() + index); // Suma días de la semana
       return {
         ...dia,
         fecha: fechaDia
       };
     });
 
-    // 3. Crear la instancia con los datos mapeados
     const nuevaPlanificacion = new Planificacion({
       ...req.body,
-      profesor: profesorId,      // Ahora sí tendrá valor
+      profesor: profesorId,      
       institucion: institucionId,
-      dias: diasProcesados,       // Ahora los días tienen su Date obligatorio
+      dias: diasProcesados,       
       estado: 'Borrador'
     });
 
@@ -46,8 +43,6 @@ exports.createPlanificacion = async (req, res) => {
   }
 };
 
-
-
 // 🔹 Ver una planificación específica
 exports.getPlanificacionById = async (req, res) => {
   try {
@@ -60,12 +55,16 @@ exports.getPlanificacionById = async (req, res) => {
   }
 };
 
-
 // 🔹 Eliminar
 exports.deletePlanificacion = async (req, res) => {
   try {
     const plan = await Planificacion.findById(req.params.id);
-    if (plan.profesor.toString() !== req.user.id) return res.status(403).json({ message: "No permitido" });
+    if (!plan) return res.status(404).json({ message: "No encontrada" });
+    
+    const currentUserId = req.user.userId || req.user.id || req.user._id;
+    if (plan.profesor.toString() !== currentUserId.toString()) {
+      return res.status(403).json({ message: "No permitido" });
+    }
     
     await Planificacion.findByIdAndDelete(req.params.id);
     res.json({ message: "Eliminado correctamente" });
@@ -80,11 +79,10 @@ exports.getPlanificaciones = async (req, res) => {
     let query = {};
     const role = req.user.role.toLowerCase();
     
-    // USAR EL ID CORRECTO DEL TOKEN (userId)
     const currentUserId = req.user.userId || req.user.id || req.user._id;
 
     if (role === 'docente') {
-      query.profesor = currentUserId; // <-- CORREGIDO
+      query.profesor = currentUserId; 
     } else if (['director/a', 'secretario/a', 'secretaria', 'administrador'].includes(role)) {
       query.institucion = req.user.institution;
     }
@@ -106,7 +104,6 @@ exports.updatePlanificacion = async (req, res) => {
     const plan = await Planificacion.findById(req.params.id);
     if (!plan) return res.status(404).json({ message: "No encontrada" });
 
-    // Seguridad: Comparar con el ID correcto
     if (plan.profesor.toString() !== currentUserId.toString()) {
       return res.status(403).json({ message: "No tienes permiso" });
     }
@@ -115,10 +112,30 @@ exports.updatePlanificacion = async (req, res) => {
       return res.status(400).json({ message: "No se puede editar una ya aprobada" });
     }
 
-    const actualizado = await Planificacion.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    // Procesar fechas de los días si se actualizaron
+    let diasActualizados = plan.dias;
+    if (req.body.fechaInicio && req.body.dias) {
+      const fechaBase = new Date(req.body.fechaInicio);
+      diasActualizados = req.body.dias.map((dia, index) => {
+        const fechaDia = new Date(fechaBase);
+        fechaDia.setDate(fechaDia.getDate() + index);
+        return {
+          ...dia,
+          fecha: fechaDia
+        };
+      });
+    }
+
+    const actualizado = await Planificacion.findByIdAndUpdate(
+      req.params.id, 
+      { ...req.body, dias: diasActualizados }, 
+      { new: true, runValidators: true }
+    );
+    
     res.json(actualizado);
   } catch (error) {
-    res.status(400).json({ message: "Error al actualizar", error });
+    console.error("❌ ERROR AL ACTUALIZAR:", error.message);
+    res.status(400).json({ message: "Error al actualizar", details: error.message });
   }
 };
 
@@ -128,6 +145,8 @@ exports.updateStatus = async (req, res) => {
     const { estado, observacionesGenerales } = req.body;
     const currentUserId = req.user.userId || req.user.id || req.user._id;
     const plan = await Planificacion.findById(req.params.id);
+    if (!plan) return res.status(404).json({ message: "No encontrada" });
+
     const role = req.user.role.toLowerCase();
 
     if (estado === 'Enviado') {
