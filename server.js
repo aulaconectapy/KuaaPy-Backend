@@ -27,7 +27,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'https://aulaconectapy.netlify.app',
   'https://colegioprivadomariaauxiliadora.netlify.app',
-  'https://kuaapy.netlify.app/',
+  'https://kuaapy.netlify.app',
   'https://localhost:5000',
 ];
 
