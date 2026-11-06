@@ -1,5 +1,29 @@
 const Planificacion = require('../models/planficacion');
 
+// 🛠️ Función auxiliar para extraer y formatear errores específicos de Mongoose
+const formatearErroresMongoose = (error) => {
+  if (error.name === 'ValidationError') {
+    return Object.keys(error.errors).map(key => {
+      const err = error.errors[key];
+      const partes = key.split('.');
+      let ubicacion = '';
+
+      // Formatear rutas tipo: dias.0.materias.1.unidadTematica
+      if (partes[0] === 'dias' && partes[2] === 'materias') {
+        const diaNum = Number(partes[1]) + 1;
+        const matNum = Number(partes[3]) + 1;
+        const campo = partes[4] || 'campo desconocido';
+        ubicacion = `Día ${diaNum}, Materia ${matNum} -> [${campo}]`;
+      } else {
+        ubicacion = key;
+      }
+
+      return `${ubicacion}: ${err.message}`;
+    });
+  }
+  return [error.message || 'Error inesperado en el servidor'];
+};
+
 // 🔹 Crear una nueva planificación (Solo Docentes)
 exports.createPlanificacion = async (req, res) => {
   try {
@@ -14,7 +38,7 @@ exports.createPlanificacion = async (req, res) => {
     const fechaBase = new Date(req.body.fechaInicio);
     const diasProcesados = (req.body.dias || []).map((dia, index) => {
       const fechaDia = new Date(fechaBase);
-      fechaDia.setDate(fechaDia.getDate() + index); // Suma días de la semana
+      fechaDia.setDate(fechaDia.getDate() + index);
       return {
         ...dia,
         fecha: fechaDia
@@ -35,10 +59,12 @@ exports.createPlanificacion = async (req, res) => {
     res.status(201).json(nuevaPlanificacion);
 
   } catch (error) {
-    console.error("❌ ERROR AL CREAR:", error.message);
+    const listaErrores = formatearErroresMongoose(error);
+    console.error("❌ ERRORES ESPECÍFICOS AL CREAR:\n", listaErrores.join('\n'));
     res.status(400).json({ 
-      message: "Error de validación", 
-      details: error.message 
+      message: "No se pudo guardar la planificación por errores de validación", 
+      detalles: listaErrores,
+      rawError: error.message 
     });
   }
 };
@@ -51,7 +77,7 @@ exports.getPlanificacionById = async (req, res) => {
     if (!plan) return res.status(404).json({ message: "No encontrada" });
     res.json(plan);
   } catch (error) {
-    res.status(500).json({ message: "Error", error });
+    res.status(500).json({ message: "Error al obtener la planificación", error });
   }
 };
 
@@ -69,7 +95,7 @@ exports.deletePlanificacion = async (req, res) => {
     await Planificacion.findByIdAndDelete(req.params.id);
     res.json({ message: "Eliminado correctamente" });
   } catch (error) {
-    res.status(500).json({ message: "Error", error });
+    res.status(500).json({ message: "Error al eliminar", error });
   }
 };
 
@@ -112,7 +138,6 @@ exports.updatePlanificacion = async (req, res) => {
       return res.status(400).json({ message: "No se puede editar una ya aprobada" });
     }
 
-    // Procesar fechas de los días si se actualizaron
     let diasActualizados = plan.dias;
     if (req.body.fechaInicio && req.body.dias) {
       const fechaBase = new Date(req.body.fechaInicio);
@@ -134,8 +159,13 @@ exports.updatePlanificacion = async (req, res) => {
     
     res.json(actualizado);
   } catch (error) {
-    console.error("❌ ERROR AL ACTUALIZAR:", error.message);
-    res.status(400).json({ message: "Error al actualizar", details: error.message });
+    const listaErrores = formatearErroresMongoose(error);
+    console.error("❌ ERRORES ESPECÍFICOS AL ACTUALIZAR:\n", listaErrores.join('\n'));
+    res.status(400).json({ 
+      message: "Error al actualizar la planificación", 
+      detalles: listaErrores,
+      rawError: error.message 
+    });
   }
 };
 

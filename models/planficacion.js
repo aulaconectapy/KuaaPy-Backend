@@ -21,10 +21,10 @@ const BloqueMateriaSchema = new mongoose.Schema({
     required: false,
     trim: true 
   },
-  unidadTematica: { 
-    type: String,
-    trim: true 
-  },
+ unidadTematica: [{ 
+  type: String,
+  trim: true 
+}],
   tema: { 
     type: String, 
     required: false,
